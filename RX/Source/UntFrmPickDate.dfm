@@ -1,0 +1,89 @@
+object FrmPickDate: TFrmPickDate
+  Left = 0
+  Top = 0
+  Caption = 'FrmPickDate'
+  ClientHeight = 173
+  ClientWidth = 283
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  OldCreateOrder = False
+  Position = poMainFormCenter
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Label1: TLabel
+    Left = 40
+    Top = 13
+    Width = 24
+    Height = 13
+    Caption = 'From'
+  end
+  object Label2: TLabel
+    Left = 40
+    Top = 64
+    Width = 12
+    Height = 13
+    Caption = 'To'
+  end
+  object Panel1: TPanel
+    Left = 0
+    Top = 132
+    Width = 283
+    Height = 41
+    Align = alBottom
+    TabOrder = 0
+    ExplicitLeft = 200
+    ExplicitTop = 152
+    ExplicitWidth = 185
+    object Button1: TButton
+      AlignWithMargins = True
+      Left = 204
+      Top = 4
+      Width = 75
+      Height = 33
+      Align = alRight
+      Caption = 'Cancel'
+      ModalResult = 2
+      TabOrder = 0
+      ExplicitLeft = 296
+      ExplicitTop = 16
+      ExplicitHeight = 25
+    end
+    object Button2: TButton
+      AlignWithMargins = True
+      Left = 123
+      Top = 4
+      Width = 75
+      Height = 33
+      Align = alRight
+      Caption = 'Ok'
+      ModalResult = 1
+      TabOrder = 1
+      ExplicitLeft = 408
+      ExplicitTop = 16
+      ExplicitHeight = 25
+    end
+  end
+  object dtpFrom: TDateTimePicker
+    Left = 40
+    Top = 32
+    Width = 186
+    Height = 21
+    Date = 43249.740026076390000000
+    Time = 43249.740026076390000000
+    TabOrder = 1
+  end
+  object dtpTo: TDateTimePicker
+    Left = 40
+    Top = 83
+    Width = 186
+    Height = 21
+    Date = 43249.740061469910000000
+    Time = 43249.740061469910000000
+    TabOrder = 2
+  end
+end

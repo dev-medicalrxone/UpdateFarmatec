@@ -1,0 +1,52 @@
+# macOS / Windows junk
+.DS_Store
+Thumbs.db
+
+# Delphi compiled / binaries
+*.dcu
+*.exe
+*.dll
+*.bpl
+*.dcp
+*.map
+*.rsm
+*.stat
+
+# IDE / local files
+*.dsk
+*.~dsk
+*.identcache
+*.local
+*.dproj.local
+*.groupproj.local
+
+# Delphi backups / temp
+*.~*
+*.bak
+*.tmp
+*.orig
+
+# Archives / logs
+*.zip
+*.rar
+*.log
+
+# Build / generated folders
+POS/Source/Win32/
+POS/Source/Win64/
+POS/Source/DCU/
+POS/Source/backup/
+POS/Source/__history/
+POS/Source/__recovery/
+
+RX/Source/Win32/
+RX/Source/Win64/
+RX/Source/DCU/
+RX/Source/backup/
+RX/Source/__history/
+RX/Source/__recovery/
+
+# Delphi/session/tool config
+*.dsv
+*.tvsconfig
+*.vlb
