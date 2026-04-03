@@ -1,4 +1,4 @@
-unit UntDMModifyDatabase;
+﻿unit UntDMModifyDatabase;
 
 interface
 
@@ -1096,6 +1096,10 @@ type
     RX_CLINICAL_ALERT: TFDQuery;
     RX_CLINICAL_APPROVAL: TFDQuery;
     VW_RX_CLINICAL_ALERT_APPROVAL: TFDQuery;
+    PETS: TFDQuery;
+    NC_PETID: TFDQuery;
+    SEARCH_PACIENTES: TFDQuery;
+    fn_SplitString: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -1357,12 +1361,17 @@ type
       var AException: Exception);
     procedure FDQuery6Error(ASender, AInitiator: TObject;
       var AException: Exception);
-
+    procedure updatePateientPets;
    private
     procedure CreateTable(TableName, NewTableName: String);
     procedure ExecSql2(Token1, SQL_Text: String);
     procedure ExecQryCreate(SQLTxt: String);
     procedure Identity(TableName, OnOff: String);
+    procedure DropAllNonConstraintIndexes;
+    procedure DropProgrammableObjectsAndIndexes;
+    function Field_exist(ColumnStr, TableStr: String): Boolean;
+    function ColumnExists(const ATableName, AColumnName: string): Boolean;
+
 
 
 
@@ -1691,9 +1700,13 @@ begin
   GetNextSequenceNumber.ExecSQL;
 
   //GetNextSequenceNumber.ParamByName('ID').AsInteger := FDQuery1.FieldByName('SCANED_RX_LINK').value;
+  //================= PETS ================================
+  ExecQryCreate(PETS.SQL.Text);
+  CreateFields('PRESCRIPTIONS', 'PetID', 'INT default(0) null');
+  updatePateientPets;
   //================= CLINICAL ALERTS =====================
-  RX_CLINICAL_ALERT.ExecSQL;
-  RX_CLINICAL_APPROVAL.ExecSQL;
+  ExecQryCreate(RX_CLINICAL_ALERT.SQL.TEXT);
+  ExecQryCreate(RX_CLINICAL_APPROVAL.SQL.Text);
   //================== Same active ingredients ============
   NDC9_INGREDIENT_MAP.ExecSQL;
   ExecQryCreate(UpsertNdc9Ingredient.SQL.Text);
@@ -1825,7 +1838,7 @@ begin
   ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DAILY_SALES_START_TIME');
   ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DAILY_SALES_END_TIME');
   ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN OTCCARD');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PATROCINIO');
+  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN CRN');
   //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TAXABLE_ESTATAL');
   //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TXR');
   //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TXR_EXTENSION');
@@ -1842,7 +1855,8 @@ begin
   ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_UNIT');
   ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_VALUE');
   ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_DATE');
-
+  //========================== PRESCRIPTIONS ==================================
+  CreateFields('PRESCRIPTIONS', 'PetID', 'INT default(0) NULL');
   ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN refill_automatico');
   ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN PRESC_SRN');
   ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN METRICDECIMALQUANTITY');
@@ -2156,7 +2170,6 @@ begin
   end;
   CreateFields('PACIENTES', 'DELIVERY', 'bit null');
   ExecSql('UPDATE PACIENTES SET DELIVERY = 0 WHERE DELIVERY IS NULL');
-  CreateFields('PACIENTES', 'ANIMAL_NAME', 'NCHAR(45) NULL');
   ExecSql('ALTER TABLE pacientes ALTER COLUMN FACILITY_ID int NULL');
   ExecSql('ALTER TABLE pacientes ALTER COLUMN DECEASED bit NULL');
   ExecSql('ALTER TABLE pacientes ALTER COLUMN ALLERGY bit NULL');
@@ -3326,8 +3339,14 @@ begin
       ExecSql('ALTER TABLE CREDITDEBITSETUP ALTER COLUMN WC_SMS_USER NCHAR(40)');
     end;
   end;
-  //GSDD_RequirePharmacistIntervention
-  //ExecSql('alter table otc drop COLUMN CRN');
+  CreateFields('CREDITDEBITSETUP', 'HISTORY_INTERACTIONS', 'bit null');
+  ExecSql('Update CREDITDEBITSETUP set HISTORY_INTERACTIONS = 0 where HISTORY_INTERACTIONS IS NULL');
+  CreateFields('CREDITDEBITSETUP', 'HISTORY_CHECK_ALLERGIES', 'bit null');
+  ExecSql('Update CREDITDEBITSETUP set HISTORY_CHECK_ALLERGIES = 0 where HISTORY_CHECK_ALLERGIES IS NULL');
+
+
+  CreateFields('CREDITDEBITSETUP', 'Surescripts_Directories', 'VARCHAR(500) NULL');
+  ExecSql('Update CREDITDEBITSETUP set Surescripts_Directories = ' + '' + '  where Surescripts_Directories IS NULL');
   CreateFields('CREDITDEBITSETUP', 'GSDD_RequirePharmacistIntervention', 'bit null');
   ExecSql('Update CREDITDEBITSETUP set GSDD_RequirePharmacistIntervention = 0 where GSDD_RequirePharmacistIntervention IS NULL');
   CreateFields('CREDITDEBITSETUP', 'TS_PRINT_COPIES', 'bit null');
@@ -3756,6 +3775,11 @@ procedure TDMModifyDatabase.DropAll;
 begin
   FrmMain.PageControlInfo.ActivePageIndex := 1;
   FrmMain.Memo2.Lines.Add('Dropping all!');
+  ExecSql('alter table PRESCRIPTIONS DROP COLUMN PROXIMOREFILL');
+  DropProgrammableObjectsAndIndexes;
+  ExecQryImages('DROP PROCEDURE INSERT_SCANNED_RX');
+  ExecQryImages('DROP PROCEDURE BACKUPDATABASE');
+  {
   ExecQry('DROP TABLE RX_LABEL');
   Directory61.ExecSQL;
   Prescribers_Specialty.ExecSQL;
@@ -3822,6 +3846,9 @@ begin
     cdsConstrains.Next;
   end;
   //===================Index=========================================
+  DropAllNonConstraintIndexes;
+  {
+  ExecSql('DROP INDEX [NC_PETID] ON [dbo].[PRESCRIPTIONS]');
 
   ExecSql('DROP INDEX [NC_USERNAME_PASSWORDS] ON [dbo].[PASSWORDS]');
   ExecSql('DROP INDEX [NC_INICIALES_PASSWORDS] ON [dbo].[PASSWORDS]');
@@ -3872,9 +3899,8 @@ begin
   //========Respuestas INDEX=================================
   ExecSql('DROP INDEX [NC_RESPUESTAS_NUMERORECETA] ON [dbo].[RESPUESTAS]');
   ExecSql('DROP INDEX [NC_RESPUESTAS_OTCNUMBER] ON [dbo].[RESPUESTAS]');
+
   //==========================================================
-  ExecQryImages('DROP PROCEDURE INSERT_SCANNED_RX');
-  ExecQryImages('DROP PROCEDURE BACKUPDATABASE');
   //======= Image INDEX ==========================
   ExecQryImages('DROP INDEX [NC_IMAGES_SCANNED_RX_LINK] ON [dbo].[IMAGES]');
   //======= Prescription_full index ==================
@@ -3883,6 +3909,7 @@ begin
   ExecQryImages('DROP INDEX [IX_PACIENTES_NUMEROCLIENTE] ON [dbo].[PACIENTES]');
   ExecQryImages('DROP INDEX [IX_DOCTOR_NUMERODOCTOR] ON [dbo].[DOCTOR]');
   ExecQryImages('DROP INDEX [IX_PLANESMEDICOS_PLANESMEDICOSNO] ON [dbo].[PLANESMEDICOS]');
+  }
 
 end;
 
@@ -4188,6 +4215,11 @@ end;
 procedure TDMModifyDatabase.FDQueryImagesAfterExecute(DataSet: TFDDataSet);
 begin
   SuccessfullyCreated('FDQueryImages');
+end;
+
+function TDMModifyDatabase.Field_exist(ColumnStr, TableStr: String): Boolean;
+begin
+
 end;
 
 procedure TDMModifyDatabase.FIX_CONTROLADOAfterExecute(DataSet: TFDDataSet);
@@ -4943,6 +4975,7 @@ begin
 
   ExecQry(fn_GetBatchClinicalSignatureHash.SQL.Text);
   ExecQry(GET_ACTIVE_PATIENT_NDCS.SQL.Text);
+  ExecQry(SEARCH_PACIENTES.SQL.Text);
   ExecQry(RX_QUEUE_ADD_NEWRX.SQL.Text);
   ExecQry(RX_INSERT_RX_QUEUE.SQL.Text);
   ExecQry(EM_UPDATEINV.SQL.Text);
@@ -5125,6 +5158,7 @@ begin
   //===================Index=========================================
 
   //Index_Images;
+  ExecQryCreate(NC_PETID.SQL.Text);
   ExecQryCreate(INDEX_PASSWORDS.SQL.Text);
   ExecQryCreate(INDEX_LOG.SQL.Text);
   ExecQryCreate(Index_Surescripts.SQL.Text);
@@ -5157,7 +5191,8 @@ begin
   CreateFieldsImages('DATABASES', 'ACTIVE', 'bit default(1) NOT NULL');
 
 
-
+  //============= Functions ============================
+  ExecQry(fn_SplitString.SQL.Text);
 
 end;
 
@@ -5603,6 +5638,156 @@ begin
   qryCreate.sql.Text := SQLTxt;
   qryCreate.ExecSQL;
 end;
+
+
+procedure TDMModifyDatabase.DropAllNonConstraintIndexes;
+begin
+  with FDQuery1 do
+  begin
+    Close;
+    SQL.Text :=
+      'DECLARE @sql NVARCHAR(MAX) = N'''';' +
+      ' ' +
+      'SELECT @sql = @sql +' +
+      '    N''DROP INDEX '' + QUOTENAME(i.name) +' +
+      '    N'' ON '' + QUOTENAME(s.name) + N''.'' + QUOTENAME(t.name) + N'';'' + CHAR(13) + CHAR(10)' +
+      ' FROM sys.indexes i' +
+      ' INNER JOIN sys.tables  t ON i.object_id = t.object_id' +
+      ' INNER JOIN sys.schemas s ON t.schema_id = s.schema_id' +
+      ' WHERE i.name IS NOT NULL' +
+      '   AND i.type_desc <> ''HEAP''' +
+      '   AND i.is_primary_key = 0' +
+      '   AND i.is_unique_constraint = 0' +
+      '   AND t.is_ms_shipped = 0;' +
+      ' ' +
+      'IF @sql <> N'''' ' +
+      '   EXEC sp_executesql @sql;';
+
+    ExecSQL;
+  end;
+end;
+
+procedure TDMModifyDatabase.DropProgrammableObjectsAndIndexes;
+begin
+  with FDQuery1 do
+  begin
+    Close;
+    SQL.Text :=
+      'DECLARE @sql NVARCHAR(MAX) = N'''';' + sLineBreak +
+      '' + sLineBreak +
+      '-- DROP TRIGGERS' + sLineBreak +
+      'SELECT @sql = @sql + ' + sLineBreak +
+      '    N''DROP TRIGGER '' + QUOTENAME(s.name) + N''.'' + QUOTENAME(tr.name) + N'';'' + CHAR(13) + CHAR(10) ' + sLineBreak +
+      'FROM sys.triggers tr ' + sLineBreak +
+      'INNER JOIN sys.objects o ON tr.object_id = o.object_id ' + sLineBreak +
+      'INNER JOIN sys.schemas s ON o.schema_id = s.schema_id ' + sLineBreak +
+      'WHERE tr.parent_class = 1 ' + sLineBreak +
+      '  AND ISNULL(tr.is_ms_shipped, 0) = 0; ' + sLineBreak +
+      '' + sLineBreak +
+      '-- DROP VIEWS' + sLineBreak +
+      'SELECT @sql = @sql + ' + sLineBreak +
+      '    N''DROP VIEW '' + QUOTENAME(s.name) + N''.'' + QUOTENAME(v.name) + N'';'' + CHAR(13) + CHAR(10) ' + sLineBreak +
+      'FROM sys.views v ' + sLineBreak +
+      'INNER JOIN sys.schemas s ON v.schema_id = s.schema_id ' + sLineBreak +
+      'WHERE ISNULL(v.is_ms_shipped, 0) = 0; ' + sLineBreak +
+      '' + sLineBreak +
+      '-- DROP FUNCTIONS' + sLineBreak +
+      'SELECT @sql = @sql + ' + sLineBreak +
+      '    N''DROP FUNCTION '' + QUOTENAME(s.name) + N''.'' + QUOTENAME(o.name) + N'';'' + CHAR(13) + CHAR(10) ' + sLineBreak +
+      'FROM sys.objects o ' + sLineBreak +
+      'INNER JOIN sys.schemas s ON o.schema_id = s.schema_id ' + sLineBreak +
+      'WHERE o.type IN (''FN'',''IF'',''TF'',''FS'',''FT'') ' + sLineBreak +
+      '  AND ISNULL(o.is_ms_shipped, 0) = 0; ' + sLineBreak +
+      '' + sLineBreak +
+      '-- DROP PROCEDURES' + sLineBreak +
+      'SELECT @sql = @sql + ' + sLineBreak +
+      '    N''DROP PROCEDURE '' + QUOTENAME(s.name) + N''.'' + QUOTENAME(p.name) + N'';'' + CHAR(13) + CHAR(10) ' + sLineBreak +
+      'FROM sys.procedures p ' + sLineBreak +
+      'INNER JOIN sys.schemas s ON p.schema_id = s.schema_id ' + sLineBreak +
+      'WHERE ISNULL(p.is_ms_shipped, 0) = 0; ' + sLineBreak +
+      '' + sLineBreak +
+      '-- DROP INDEXES' + sLineBreak +
+      'SELECT @sql = @sql + ' + sLineBreak +
+      '    N''DROP INDEX '' + QUOTENAME(i.name) + ' + sLineBreak +
+      '    N'' ON '' + QUOTENAME(s.name) + N''.'' + QUOTENAME(t.name) + N'';'' + CHAR(13) + CHAR(10) ' + sLineBreak +
+      'FROM sys.indexes i ' + sLineBreak +
+      'INNER JOIN sys.tables t ON i.object_id = t.object_id ' + sLineBreak +
+      'INNER JOIN sys.schemas s ON t.schema_id = s.schema_id ' + sLineBreak +
+      'WHERE i.name IS NOT NULL ' + sLineBreak +
+      '  AND i.type_desc <> ''HEAP'' ' + sLineBreak +
+      '  AND i.is_primary_key = 0 ' + sLineBreak +
+      '  AND i.is_unique_constraint = 0 ' + sLineBreak +
+      '  AND t.is_ms_shipped = 0; ' + sLineBreak +
+      '' + sLineBreak +
+      'IF @sql <> N'''' ' + sLineBreak +
+      '  EXEC sp_executesql @sql;';
+
+    ExecSQL;
+  end;
+end;
+
+function TDMModifyDatabase.ColumnExists(const ATableName, AColumnName: string): Boolean;
+begin
+  Result := False;
+
+  with FDQuery1 do
+  begin
+    Close;
+    SQL.Text :=
+      'SELECT 1 ' +
+      'FROM sys.columns ' +
+      'WHERE Name = :ColumnName ' +
+      '  AND Object_ID = Object_ID(:TableName)';
+
+    ParamByName('ColumnName').AsString := AColumnName;
+    ParamByName('TableName').AsString := ATableName;
+
+    Open;
+
+    Result := not IsEmpty; // ← this is the key
+  end;
+end;
+
+Procedure TDMModifyDatabase.updatePateientPets;
+begin
+  if ColumnExists('PACIENTES', 'ANIMAL_NAME') then
+  begin
+    FDQuery2.Close;
+    FDQuery2.SQL.Text := 'Select * from Pacientes where ANIMAL_NAME > ' + chr(39) + chr(39);
+    FDQuery2.Open;
+    While not FDQuery2.Eof do
+    begin
+      with FDQuery3 do
+      begin
+        Close;
+        SQL.Text :=
+          'INSERT INTO dbo.PETS (' +
+          '  NumeroClienteOwner, PetName, Species, Breed, DOB, Sex, IsActive ' +
+          ') ' +
+          'OUTPUT INSERTED.PetID ' +
+          'VALUES (' +
+          '  :NumeroClienteOwner, :PetName, :Species, :Breed, :DOB, :Sex, :IsActive' +
+          ')';
+
+        ParamByName('NumeroClienteOwner').AsInteger := FDQuery2.fieldbyname('NumeroCliente').Value;
+        ParamByName('PetName').AsString := FDQuery2.fieldbyname('ANIMAL_NAME').Value;
+        ParamByName('Species').AsString := '02';
+        ParamByName('Breed').asString := '';
+        ParamByName('DOB').AsDateTime := Date;
+        ParamByName('Sex').asString := 'Male';
+        ParamByName('IsActive').AsBoolean := true;
+        Open;
+        var NewID := Fields[0].AsInteger;
+        ExecSql('update Prescriptions set PetID = ' + IntToStr(NewID)
+        + ' where numerocliente = ' + IntToStr(FDQuery2.fieldbyname('NumeroCliente').Value)
+        + ' and VETERINARY = 1');
+      end;
+      FDQuery2.Next;
+    end;
+    ExecSql('ALTER TABLE Pacientes DROP COLUMN ANIMAL_NAME');
+  end;
+end;
+
 
 
 end.

@@ -41,6 +41,7 @@ object FrmMain: TFrmMain
           Caption = 'Update Farmatec'
           TabOrder = 0
           OnClick = btnUpdateClick
+          ExplicitTop = 2
         end
         object Button2: TButton
           AlignWithMargins = True
@@ -64,7 +65,6 @@ object FrmMain: TFrmMain
           Caption = 'Fix Bill Later'
           TabOrder = 2
           OnClick = btnConvertPasswordClick
-          ExplicitTop = 2
         end
         object EditNPI: TEdit
           AlignWithMargins = True
@@ -111,7 +111,6 @@ object FrmMain: TFrmMain
           Caption = 'Reindex'
           TabOrder = 6
           OnClick = Button8Click
-          ExplicitTop = 2
         end
       end
       object PageControlInfo: TPageControl
