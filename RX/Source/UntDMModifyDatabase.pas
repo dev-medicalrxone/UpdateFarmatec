@@ -1100,6 +1100,7 @@ type
     NC_PETID: TFDQuery;
     SEARCH_PACIENTES: TFDQuery;
     fn_SplitString: TFDQuery;
+    WORKSTATION_PRINTER_MAP: TFDQuery;
     VALIDATE_OTC_BATCH_INTEGRITY: TFDQuery;
     GET_PACIENTE_BY_ID: TFDQuery;
     SEARCH_GLOBAL: TFDQuery;
@@ -1114,6 +1115,7 @@ type
     D0_SEG10_Compound_schema: TFDQuery;
     D0_SEG06_WorkersComp_schema: TFDQuery;
     PATIENT_LOOKUP: TFDQuery;
+    GET_INVENTORIYINFO: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -4999,6 +5001,8 @@ begin
   ExecQry(D0_SEG11_Pricing_schema.sql.Text);
   ExecQryCreate(D0_BuildTransFile_schema.sql.Text);
   //======================================================
+  ExecQry(WORKSTATION_PRINTER_MAP.SQL.Text);
+  ExecQry(GET_INVENTORIYINFO.SQL.Text);
   ExecQry(PATIENT_LOOKUP.SQL.Text);
   ExecSql2('WF_UPDATE_PICKUP', WF_UPDATE_PICKUP.SQL.Text);
   ExecSql2('WC_CREATE_NEWBAG', WC_CREATE_NEWBAG.SQL.Text);
