@@ -2,7 +2,7 @@ object FrmMain: TFrmMain
   Left = 0
   Top = 0
   Caption = 'Update Farmatec'
-  ClientHeight = 505
+  ClientHeight = 631
   ClientWidth = 1085
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object FrmMain: TFrmMain
     Left = 0
     Top = 0
     Width = 1085
-    Height = 486
+    Height = 612
     ActivePage = TabSheet1
     Align = alClient
     TabOrder = 0
@@ -41,7 +41,6 @@ object FrmMain: TFrmMain
           Caption = 'Update Farmatec'
           TabOrder = 0
           OnClick = btnUpdateClick
-          ExplicitTop = 2
         end
         object Button2: TButton
           AlignWithMargins = True
@@ -87,7 +86,6 @@ object FrmMain: TFrmMain
           Align = alLeft
           Caption = 'Update OTC'
           TabOrder = 4
-          Visible = False
           OnClick = Button4Click
         end
         object Button5: TButton
@@ -117,7 +115,7 @@ object FrmMain: TFrmMain
         Left = 0
         Top = 35
         Width = 1077
-        Height = 423
+        Height = 549
         ActivePage = TabSheet3
         Align = alClient
         TabOrder = 1
@@ -150,7 +148,7 @@ object FrmMain: TFrmMain
             Left = 0
             Top = 231
             Width = 1069
-            Height = 164
+            Height = 290
             Align = alClient
             TabOrder = 2
           end
@@ -162,9 +160,10 @@ object FrmMain: TFrmMain
             Left = 0
             Top = 0
             Width = 1069
-            Height = 395
+            Height = 521
             Align = alClient
             TabOrder = 0
+            ExplicitHeight = 395
           end
         end
       end
@@ -206,7 +205,7 @@ object FrmMain: TFrmMain
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 486
+    Top = 612
     Width = 1085
     Height = 19
     Panels = <

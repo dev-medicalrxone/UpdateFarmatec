@@ -65,9 +65,10 @@ uses UntDMModifyDatabase, UntDMePrescribe, UntFrmPickDate;
 procedure TFrmMain.btnUpdateClick(Sender: TObject);
 begin
   DMModifyDatabase.CreateNewFields;
-  //DMModifyDatabase.DropAll;
+
   DMModifyDatabase.UpdateFarmatec ;
   UpdateOTC_PlanMedicoNo;
+
   ShowMessage('Finish updating!');
 end;
 
@@ -186,7 +187,8 @@ procedure TFrmMain.Button4Click(Sender: TObject);
 Var
   Counter: integer;
 begin
-
+  DMModifyDatabase.CreateFields('PRESCRIPTIONS', 'LTC', 'bit null');
+{
   with DMModifyDatabase do
   begin
     CDSPrescriptions.close;
@@ -283,6 +285,7 @@ begin
       cdsPrescriptions.Next;
     end;
   end;
+  }
 end;
 
 procedure TFrmMain.Button5Click(Sender: TObject);
@@ -341,7 +344,7 @@ end;
 
 procedure TFrmMain.FormShow(Sender: TObject);
 begin
-  if DMModifyDatabase.DatabaseName = 'esco' then btnUpdate.Enabled := false;
+//  if DMModifyDatabase.DatabaseName = 'esco' then btnUpdate.Enabled := false;
 
 end;
 

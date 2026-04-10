@@ -1036,7 +1036,7 @@ type
     D0_COB_segment: TFDQuery;
     D0_DUR_Segment: TFDQuery;
     D0_Workers_compensation: TFDQuery;
-    D0_Compound_setment: TFDQuery;
+    D0_Compound_segment: TFDQuery;
     D0_Clinical_Segment: TFDQuery;
     INSERTPOS: TFDQuery;
     SOFTWARE_VERSION: TFDQuery;
@@ -1059,7 +1059,7 @@ type
     POS_GET_HANDHELDINFO: TFDQuery;
     PAYMENT_CARD_LOG: TFDQuery;
     HCPCSCodes: TFDQuery;
-    D0_BuidTransFile_schema: TFDQuery;
+    D0_BuildTransFile_schema: TFDQuery;
     D0_COB_segment_schema: TFDQuery;
     D0_DUR_Segment_schema: TFDQuery;
     D0_Workers_compensation_schema: TFDQuery;
@@ -1100,6 +1100,20 @@ type
     NC_PETID: TFDQuery;
     SEARCH_PACIENTES: TFDQuery;
     fn_SplitString: TFDQuery;
+    VALIDATE_OTC_BATCH_INTEGRITY: TFDQuery;
+    GET_PACIENTE_BY_ID: TFDQuery;
+    SEARCH_GLOBAL: TFDQuery;
+    fn_D0_GetFloatCharacter: TFDQuery;
+    D0_SEG01_Patient_schema: TFDQuery;
+    D0_SEG07_Claim_schema: TFDQuery;
+    D0_SEG03_Prescriber_schema: TFDQuery;
+    D0_SEG04_Insurance_schema: TFDQuery;
+    D0_SEG11_Pricing_schema: TFDQuery;
+    D0_SEG05_COB_schema: TFDQuery;
+    D0_SEG08_DUR_schema: TFDQuery;
+    D0_SEG10_Compound_schema: TFDQuery;
+    D0_SEG06_WorkersComp_schema: TFDQuery;
+    PATIENT_LOOKUP: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -1371,6 +1385,11 @@ type
     procedure DropProgrammableObjectsAndIndexes;
     function Field_exist(ColumnStr, TableStr: String): Boolean;
     function ColumnExists(const ATableName, AColumnName: string): Boolean;
+    procedure DropColumnIfExists(const ATableName, AColumnName: string);
+    function DropConstraintIfExistsSafe(const ATableName,
+      AConstraintName: string; out AError: string): Boolean;
+    function AddConstraintIfNotExistsSafe(const ATableName, AConstraintName,
+      AAddConstraintSQL: string; out AError: string): Boolean;
 
 
 
@@ -1661,6 +1680,7 @@ procedure TDMModifyDatabase.CreateNewFields;
 Var
   SQLStr: String;
   Len: Integer;
+  Err: string;
 begin
   FrmMain.Memo1.Clear;
   DropAll;
@@ -1771,7 +1791,6 @@ begin
   begin
     HCPCSCodes_import.ExecSQL;
   end;
-
   ExecQryCreate(INVENTARIO_ITEM.SQL.Text);
   ExecQryCreate(Prescriptions_ByPhone.SQL.Text);
   ExecQryCreate(RX_ADD_EDIT_RX_BYPHONE.SQL.Text);
@@ -1789,8 +1808,12 @@ begin
 
   //========== ElectrRecon =======================
   ExecQryCreate(ElectrReconcDup.SQL.Text);
-  ExecSql('ALTER TABLE [dbo].[ElectrReconcDup] ADD  CONSTRAINT [DF_ElectrReconcDup_REASON]  DEFAULT ('+chr(39) + chr(39) +') FOR [REASON]');
+  AddConstraintIfNotExistsSafe('dbo.ElectrReconcDup',
+     'DF_ElectrReconcDup_REASON',
+     'ADD  CONSTRAINT [DF_ElectrReconcDup_REASON]  DEFAULT ('+chr(39) + chr(39) +') FOR [REASON]', Err);
+
   ExecQryCreate(ElectrReconc.SQL.Text);
+
   ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_ID_INSUR]  DEFAULT ((0)) FOR [ID_INSUR]');
   ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_STATUS]  DEFAULT ((0)) FOR [STATUS]');
   ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_DIFFERENCE]  DEFAULT ((0)) FOR [DIFFERENCE]');
@@ -1820,58 +1843,49 @@ begin
   CreateFields('WILLCALL', 'FILL_NUMBER', 'smallint null');
   CreateFields('WILLCALLHistory', 'FILL_NUMBER', 'smallint null');
 
+  DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
+  DropColumnIfExists('INVENTARIOPISO', 'PRECIO_DACO');
+  DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
+  DropColumnIfExists('INVENTARIOPISO', 'PRECIO2');
+  DropColumnIfExists('INVENTARIOPISO', 'PRECIOVENTA2');
+  DropColumnIfExists('INVENTARIOPISO', 'ESCANEAR_BARCODEALTERNO');
+  DropColumnIfExists('INVENTARIOPISO', 'EDITAR_PRECIO_NEW');
+  DropColumnIfExists('INVENTARIOPISO', 'SALES_PROMOTION_ID');
+  DropColumnIfExists('INVENTARIOPISO', 'RECIPE_PRICE');
+  DropColumnIfExists('INVENTARIOPISO', 'RECIPE');
+  DropColumnIfExists('INVENTARIOPISO', 'MODIFIER_QTY');
+  DropColumnIfExists('INVENTARIOPISO', 'KITCHEN');
+  DropColumnIfExists('INVENTARIOPISO', 'HAS_MODIFIER');
+  DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALES_START_TIME');
+  DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALES_END_TIME');
+  DropColumnIfExists('INVENTARIOPISO', 'OTCCARD');
+  DropColumnIfExists('INVENTARIOPISO', 'HAS_MODIFIER');
+  DropColumnIfExists('INVENTARIOPISO', 'MODIFIER_QTY');
+  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_TIME');
+  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_DATE');
+  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_UNIT');
+  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_DIMENSION');
+  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_VALUE');
 
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN GROUP_QTY');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRECIO_CAJA');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRECIO_DACO');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN GROUP_QTY');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRECIO2');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRECIOVENTA2');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN ESCANEAR_BARCODEALTERNO');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN EDITAR_PRECIO_NEW');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SALES_PROMOTION_ID');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN RECIPE_PRICE');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN RECIPE');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN MODIFIER_QTY');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN KITCHEN');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN HAS_MODIFIER');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DAILY_SALES_START_TIME');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DAILY_SALES_END_TIME');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN OTCCARD');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN CRN');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TAXABLE_ESTATAL');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TXR');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TXR_EXTENSION');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PORCIENTODESCUENTO');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN HAS_MODIFIER');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN KITCHEN');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN MODIFIER_QTY');
-
-
-
-
-  ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_TIME');
-  ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_DIMENSION');
-  ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_UNIT');
-  ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_VALUE');
-  ExecSql('ALTER TABLE CLINICAL_SEGMENT DROP COLUMN MEASUREMENT_DATE');
   //========================== PRESCRIPTIONS ==================================
+
   CreateFields('PRESCRIPTIONS', 'PetID', 'INT default(0) NULL');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN refill_automatico');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN PRESC_SRN');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN METRICDECIMALQUANTITY');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN NOREFDISP');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN ANNOTATIONS');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN STATUS_RX');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN HORA');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN CONTROLADO');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN FECHAVENTA');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN DAW');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN DIASSUPLIDOS');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN COBRADO_POS');
+  DropColumnIfExists('PRESCRIPTIONS', 'refill_automatico');
+  DropColumnIfExists('PRESCRIPTIONS', 'PRESC_SRN');
+  DropColumnIfExists('PRESCRIPTIONS', 'METRICDECIMALQUANTITY');
+  DropColumnIfExists('PRESCRIPTIONS', 'NOREFDISP');
+  DropColumnIfExists('PRESCRIPTIONS', 'ANNOTATIONS');
+  DropColumnIfExists('PRESCRIPTIONS', 'STATUS_RX');
+  DropColumnIfExists('PRESCRIPTIONS', 'HORA');
+  DropColumnIfExists('PRESCRIPTIONS', 'CONTROLADO');
+  DropColumnIfExists('PRESCRIPTIONS', 'FECHAVENTA');
+  DropColumnIfExists('PRESCRIPTIONS', 'DAW');
+  DropColumnIfExists('PRESCRIPTIONS', 'DIASSUPLIDOS');
+  DropColumnIfExists('PRESCRIPTIONS', 'COBRADO_POS');
+  DropColumnIfExists('PRESCRIPTIONS', 'DELIVERY');
+
   CreateFields('PRESCRIPTIONS', 'GUID', 'VARCHAR(36) null');
   CreateFields('PRESCRIPTIONS', 'VETERINARY', 'bit NULL');
-  ExecSql('ALTER TABLE PRESCRIPTIONS DROP COLUMN DELIVERY');
   ExecSql('UPDATE PRESCRIPTIONS SET BATCH_NUMBER = 0');
   CreateFields('PRESCRIPTIONS', 'SCHEDULE_RX_ID_NO', 'NCHAR(12) null');
   CreateFields('PRESCRIPTIONS', 'RECORD_LOCKED', 'bit default(0) null');
@@ -1909,11 +1923,12 @@ begin
   ExecSql('ALTER TABLE OTC DROP COLUMN IsCashSale');
   //ExecSql('ALTER TABLE OTC DROP COLUMN PAIDDATE_REC');
   ExecSql('ALTER TABLE otc ADD CONSTRAINT df_APPRISS_SENT DEFAULT 0 FOR APPRISS_SENT');
-  ExecSql('ALTER TABLE OTC DROP COLUMN SCHEDULE_RX_ID_NO');
-  ExecSql('ALTER TABLE OTC DROP COLUMN POST_DATE');
-  ExecSql('ALTER TABLE OTC DROP COLUMN PICKEDUPBY_RELETION');
-  ExecSql('ALTER TABLE OTC DROP COLUMN OTC_BARCODE');
-  ExecSql('ALTER TABLE OTC DROP COLUMN DAYS_SUPLY');
+  DropColumnIfExists('OTC', 'SCHEDULE_RX_ID_NO');
+  DropColumnIfExists('OTC', 'POST_DATE');
+  DropColumnIfExists('OTC', 'PICKEDUPBY_RELETION');
+  DropColumnIfExists('OTC', 'OTC_BARCODE');
+  DropColumnIfExists('OTC', 'DAYS_SUPLY');
+
   ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_IOU DEFAULT 0 FOR IOU');
   CreateFields('OTC', 'INV_QTY_TODATE', 'DECIMAL(18,2) default(0) null');
   CreateFields('OTC', 'RELATED_OTC_NUMBER', 'INT default(0) null');
@@ -1986,6 +2001,8 @@ begin
 
 
   //============  Planes medicos=============================================
+  ExecSql('ALTER TABLE dbo.PLANESMEDICOS DROP CONSTRAINT PK_PLANESMEDICOS;');
+  ExecSql('ALTER TABLE dbo.PLANESMEDICOS ADD CONSTRAINT PK_PLANESMEDICOS PRIMARY KEY (PLANESMEDICOSNO)');
   CreateFields('PLANESMEDICOS', 'PAYMENT_TYPE', 'char(2) default('+ chr(39) + '04' + chr(39)+') null');
   ExecSql('Update PlanesMedicos set PAYMENT_TYPE = '+ chr(39) + '04' + chr(39)+' where PAYMENT_TYPE IS NULL');
   ExecSql('Update PlanesMedicos set PAYMENT_TYPE = '+ chr(39) + '01' + chr(39)+' where ABREVIATURA = ' + chr(39)+ 'CAS' + CHR(39));
@@ -3339,6 +3356,9 @@ begin
       ExecSql('ALTER TABLE CREDITDEBITSETUP ALTER COLUMN WC_SMS_USER NCHAR(40)');
     end;
   end;
+  CreateFields('CREDITDEBITSETUP', 'PAT_COMPLEX_SEARCH', 'bit null');
+  ExecSql('Update CREDITDEBITSETUP set PAT_COMPLEX_SEARCH = 0 where PAT_COMPLEX_SEARCH IS NULL');
+
   CreateFields('CREDITDEBITSETUP', 'HISTORY_INTERACTIONS', 'bit null');
   ExecSql('Update CREDITDEBITSETUP set HISTORY_INTERACTIONS = 0 where HISTORY_INTERACTIONS IS NULL');
   CreateFields('CREDITDEBITSETUP', 'HISTORY_CHECK_ALLERGIES', 'bit null');
@@ -3550,9 +3570,11 @@ begin
   QBorrarNonMatchedNDC.SQL.Text := SQLStr;
   QBorrarNonMatchedNDC.ExecSQL;
   //===============================================================================
-
-  ExecQry('ALTER TABLE PRESCRIPTIONS ADD CONSTRAINT DF_RX_DIASSUPLIDOS DEFAULT 0 FOR DIASSUPLIDOS');
-  ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE');
+  AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
+     'DF_RX_RXORIGINCODE',
+     'ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE', Err);
+  //ExecQry('ALTER TABLE PRESCRIPTIONS ADD CONSTRAINT DF_RX_DIASSUPLIDOS DEFAULT 0 FOR DIASSUPLIDOS');
+  //ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE');
   ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_PRESCRIBERIDQUALIFIER DEFAULT '+ CHR(39) +'01' + CHR(39) + ' FOR PRESCRIBERIDQUALIFIER');
   ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_CANTIDADRECETADA DEFAULT 0 FOR CANTIDADRECETADA');
   ExecQry('ALTER TABLE dbo.OTC ADD CONSTRAINT DF_OTC_IMPRIMIR DEFAULT 1 FOR IMPRIMIR');
@@ -4179,7 +4201,7 @@ end;
 procedure TDMModifyDatabase.FDQuery1Error(ASender, AInitiator: TObject;
   var AException: Exception);
 begin
-  FrmMain.MemoErrors.Lines.Add(FDQuery1.SQL.Text);
+  //FrmMain.MemoErrors.Lines.Add(FDQuery1.SQL.Text);
 end;
 
 procedure TDMModifyDatabase.FDQuery2Error(ASender, AInitiator: TObject;
@@ -4965,6 +4987,19 @@ begin
     ExecSql('DROP TABLE RXDATA');
     ExecQryCreate(RXDATA.SQL.Text);
   end;
+  //================ D0 segments =========================
+  ExecQry(D0_SEG01_Patient_schema.SQL.Text);
+  ExecQry(D0_SEG03_Prescriber_schema.SQL.Text);
+  ExecQry(D0_SEG04_Insurance_schema.sql.Text);
+  ExecQry(D0_SEG05_COB_schema.SQL.Text);
+  ExecQry(D0_SEG06_WorkersComp_schema.SQL.Text);
+  ExecQry(D0_SEG07_Claim_schema.SQL.Text);
+  ExecQry(D0_SEG08_DUR_schema.SQL.Text);
+  ExecQry(D0_SEG10_Compound_schema.SQL.Text);
+  ExecQry(D0_SEG11_Pricing_schema.sql.Text);
+  ExecQryCreate(D0_BuildTransFile_schema.sql.Text);
+  //======================================================
+  ExecQry(PATIENT_LOOKUP.SQL.Text);
   ExecSql2('WF_UPDATE_PICKUP', WF_UPDATE_PICKUP.SQL.Text);
   ExecSql2('WC_CREATE_NEWBAG', WC_CREATE_NEWBAG.SQL.Text);
   ExecSql2('UPDATE_BILLING_REJECTED_RX', UPDATE_BILLING_REJECTED_RX.SQL.Text);
@@ -4972,15 +5007,16 @@ begin
   ExecSql2('RX_VALIDATE_NEWRX_DATA', RX_VALIDATE_NEWRX_DATA.SQL.Text);
   ExecSql2('WC_UPDATE_NOTIFICATION_MODE',WC_UPDATE_NOTIFICATION_MODE.sql.Text);
   ExecSql2('WC_INSERT_NEWPRODUCT_BAG', WC_INSERT_NEWPRODUCT_BAG.SQL.Text);
-
+  ExecQry(SEARCH_GLOBAL.SQL.Text);
+  ExecQry(VALIDATE_OTC_BATCH_INTEGRITY.SQL.Text);
   ExecQry(fn_GetBatchClinicalSignatureHash.SQL.Text);
+  ExecQry(GET_PACIENTE_BY_ID.SQL.Text);
   ExecQry(GET_ACTIVE_PATIENT_NDCS.SQL.Text);
   ExecQry(SEARCH_PACIENTES.SQL.Text);
   ExecQry(RX_QUEUE_ADD_NEWRX.SQL.Text);
   ExecQry(RX_INSERT_RX_QUEUE.SQL.Text);
   ExecQry(EM_UPDATEINV.SQL.Text);
   ExecQryCreate(OTC_INVENTORY_CONTROL.SQL.Text);
-  ExecQryCreate(D0_BuidTransFile_schema.sql.Text);
   ExecQryCreate(D0_COB_segment_schema.SQL.Text);
   ExecQryCreate(D0_DUR_Segment_schema.SQL.Text);
   ExecQryCreate(D0_Workers_compensation_schema.SQL.Text);
@@ -4991,7 +5027,7 @@ begin
   ExecQryCreate(D0_COB_segment.SQL.Text);
   ExecQryCreate(D0_DUR_Segment.SQL.Text);
   ExecQryCreate(D0_Workers_compensation.SQL.Text);
-  ExecQryCreate(D0_Compound_setment.SQL.Text);
+  ExecQryCreate(D0_Compound_segment.SQL.Text);
   ExecQryCreate(D0_Clinical_Segment.SQL.Text);
   ExecQryCreate(D0_BuidTransFile.SQL.Text);
   ExecQryCreate(RX_REFILL_NOTIFIED.SQL.Text);
@@ -5193,7 +5229,7 @@ begin
 
   //============= Functions ============================
   ExecQry(fn_SplitString.SQL.Text);
-
+  ExecQry(fn_D0_GetFloatCharacter.SQL.Text);
 end;
 
 procedure TDMModifyDatabase.UpdateFromResponseAfterExecute(DataSet: TFDDataSet);
@@ -5785,6 +5821,185 @@ begin
       FDQuery2.Next;
     end;
     ExecSql('ALTER TABLE Pacientes DROP COLUMN ANIMAL_NAME');
+  end;
+end;
+
+
+procedure TDMModifyDatabase.DropColumnIfExists(const ATableName, AColumnName: string);
+var
+  SQLText: string;
+begin
+  SQLText :=
+    'DECLARE @ConstraintName NVARCHAR(200); ' +
+    'DECLARE @SQL NVARCHAR(MAX); ' +
+
+    'SELECT @ConstraintName = dc.name ' +
+    'FROM sys.default_constraints dc ' +
+    'INNER JOIN sys.columns c ' +
+    '  ON c.default_object_id = dc.object_id ' +
+    'WHERE c.object_id = OBJECT_ID(:TableName) ' +
+    '  AND c.name = :ColumnName; ' +
+
+    'IF @ConstraintName IS NOT NULL ' +
+    'BEGIN ' +
+    '  SET @SQL = ''ALTER TABLE ' + ATableName + ' DROP CONSTRAINT ['' + @ConstraintName + '']''; ' +
+    '  EXEC(@SQL); ' +
+    'END; ' +
+
+    'IF EXISTS ( ' +
+    '    SELECT 1 ' +
+    '    FROM sys.columns ' +
+    '    WHERE name = :ColumnName2 ' +
+    '      AND object_id = OBJECT_ID(:TableName2) ' +
+    ') ' +
+    'BEGIN ' +
+    '  SET @SQL = ''ALTER TABLE ' + ATableName + ' DROP COLUMN [' + AColumnName + ']''; ' +
+    '  EXEC(@SQL); ' +
+    'END;';
+  Try
+  with FDQuery1 do
+  begin
+    Close;
+    SQL.Text := SQLText;
+    ParamByName('TableName').AsString  := ATableName;   // example: dbo.MYTABLE
+    ParamByName('ColumnName').AsString := AColumnName;  // example: MyField
+    ParamByName('TableName2').AsString := ATableName;
+    ParamByName('ColumnName2').AsString := AColumnName;
+    ExecSQL;
+  end;
+  Except
+    on E: EMSSQLNativeException do
+    begin
+      FrmMain.MemoErrors.Lines.Add(ATableName + ' ' + AColumnName +' Execute error: '+#13#10+ E.Message);
+    end;
+  End;
+end;
+
+
+function TDMModifyDatabase.DropConstraintIfExistsSafe(
+  const ATableName, AConstraintName: string;
+  out AError: string
+): Boolean;
+begin
+  Result := False;
+  AError := '';
+
+  with FDConnection1 do
+  begin
+    try
+      StartTransaction;
+
+      try
+        with FDQuery1 do
+        begin
+          Close;
+          SQL.Text :=
+            'DECLARE @TableName SYSNAME = :TableName; ' +
+            'DECLARE @ConstraintName SYSNAME = :ConstraintName; ' +
+            'DECLARE @SQL NVARCHAR(MAX); ' +
+
+            'IF EXISTS ( ' +
+            '    SELECT 1 ' +
+            '    FROM sys.objects so ' +
+            '    WHERE so.name = @ConstraintName ' +
+            '      AND so.parent_object_id = OBJECT_ID(@TableName) ' +
+            ') ' +
+            'BEGIN ' +
+            '    SET @SQL = N''ALTER TABLE '' ' +
+            '             + QUOTENAME(PARSENAME(@TableName, 2)) + ''.'' + QUOTENAME(PARSENAME(@TableName, 1)) ' +
+            '             + N'' DROP CONSTRAINT '' + QUOTENAME(@ConstraintName); ' +
+            '    EXEC sp_executesql @SQL; ' +
+            'END;';
+
+          ParamByName('TableName').AsString := ATableName;
+          ParamByName('ConstraintName').AsString := AConstraintName;
+
+          ExecSQL;
+        end;
+
+        Commit;
+        Result := True;
+
+      except
+        on E: Exception do
+        begin
+          Rollback;
+          AError := E.Message;
+          Result := False;
+        end;
+      end;
+
+    except
+      on E: Exception do
+      begin
+        AError := 'Transaction error: ' + E.Message;
+        Result := False;
+      end;
+    end;
+  end;
+end;
+
+
+function TDMModifyDatabase.AddConstraintIfNotExistsSafe(
+  const ATableName, AConstraintName, AAddConstraintSQL: string;
+  out AError: string
+): Boolean;
+begin
+  Result := False;
+  AError := '';
+
+  with FDConnection1 do
+  begin
+    try
+      StartTransaction;
+      try
+        with FDQuery1 do
+        begin
+          Close;
+          SQL.Text :=
+            'DECLARE @TableName SYSNAME = :TableName; ' +
+            'DECLARE @ConstraintName SYSNAME = :ConstraintName; ' +
+            'DECLARE @AddSQL NVARCHAR(MAX) = :AddSQL; ' +
+            'DECLARE @SQL NVARCHAR(MAX); ' +
+
+            'IF NOT EXISTS ( ' +
+            '    SELECT 1 ' +
+            '    FROM sys.objects so ' +
+            '    WHERE so.name = @ConstraintName ' +
+            '      AND so.parent_object_id = OBJECT_ID(@TableName) ' +
+            ') ' +
+            'BEGIN ' +
+            '    SET @SQL = N''ALTER TABLE '' ' +
+            '             + QUOTENAME(PARSENAME(@TableName, 2)) + ''.'' + QUOTENAME(PARSENAME(@TableName, 1)) ' +
+            '             + N'' '' + @AddSQL; ' +
+            '    EXEC sp_executesql @SQL; ' +
+            'END;';
+
+          ParamByName('TableName').AsString := ATableName;
+          ParamByName('ConstraintName').AsString := AConstraintName;
+          ParamByName('AddSQL').AsString := AAddConstraintSQL;
+
+          ExecSQL;
+        end;
+
+        Commit;
+        Result := True;
+      except
+        on E: Exception do
+        begin
+          Rollback;
+          AError := E.Message;
+          FrmMain.MemoErrors.Lines.Add(AError);
+          Result := False;
+        end;
+      end;
+    except
+      on E: Exception do
+      begin
+        AError := 'Transaction error: ' + E.Message;
+        Result := False;
+      end;
+    end;
   end;
 end;
 
