@@ -8631,12 +8631,12 @@ object DMModifyDatabase: TDMModifyDatabase
     SQL.Strings = (
       'CREATE PROCEDURE [dbo].[INVENTORY_CONTROL]'
       '('
-      '    @OTC_NUMBER  INT,'
-      '    @IMPRIMIR    BIT,'
-      '    @LABEL_NAME  NVARCHAR(15),'
-      '    @PRINTER_ID  INT,'
-      '    @REVERSAL    BIT,'
-      '    @PRINTER_IP  NVARCHAR(50)'
+      '    @OTC_NUMBER INT,'
+      '    @IMPRIMIR BIT,'
+      '    @LABEL_NAME NVARCHAR(15),'
+      '    @PRINTER_ID INT,'
+      '    @REVERSAL BIT,'
+      '    @PRINTER_IP NVARCHAR(50)'
       ')'
       'AS'
       'BEGIN'
@@ -8681,23 +8681,23 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       
         '        --------------------------------------------------------' +
-        '----'
-      '        -- OTC'
+        '--------'
+      '        -- Load OTC'
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        SELECT'
-      '            @DRUG           = OTC.MEDICAMENTO,'
-      '            @QTY            = OTC.QTY,'
-      '            @PRODUCTID      = OTC.PRODUCT_ID,'
-      '            @NORX           = OTC.NUMERORECETA,'
-      '            @ATENDIDAPOR    = OTC.ATENDIDOPOR,'
-      '            @MEZCLA_TRAN_NO = OTC.MEZCLA_TRAN_NO,'
-      '            @CONTROLADO     = OTC.CONTROLADO,'
-      '            @NDC            = OTC.NDC,'
-      '            @PRINTCOPIES    = ISNULL(OTC.PRINTCOPIES, 1)'
-      '        FROM OTC'
-      '        WHERE OTCNUMBER = @OTC_NUMBER;'
+      '            @DRUG           = O.MEDICAMENTO,'
+      '            @QTY            = O.QTY,'
+      '            @PRODUCTID      = O.PRODUCT_ID,'
+      '            @NORX           = O.NUMERORECETA,'
+      '            @ATENDIDAPOR    = O.ATENDIDOPOR,'
+      '            @MEZCLA_TRAN_NO = O.MEZCLA_TRAN_NO,'
+      '            @CONTROLADO     = O.CONTROLADO,'
+      '            @NDC            = O.NDC,'
+      '            @PRINTCOPIES    = ISNULL(O.PRINTCOPIES, 1)'
+      '        FROM OTC O'
+      '        WHERE O.OTCNUMBER = @OTC_NUMBER;'
       ''
       '        IF @NORX IS NULL'
       
@@ -8709,11 +8709,11 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       
         '        --------------------------------------------------------' +
-        '----'
-      '        -- PRESCRIPTIONS'
+        '--------'
+      '        -- Load PRESCRIPTIONS'
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        SELECT'
       '            @COMPOUNDCODE    = P.COMPOUNDCODE,'
       '            @NODOCTOR        = P.NUMERODOCTOR,'
@@ -8734,14 +8734,14 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        -- Setup'
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        SELECT TOP (1)'
-      '            @EasyrxUpdateInv = ISNULL(EasyrxUpdateInv, 0)'
-      '        FROM CREDITDEBITSETUP;'
+      '            @EasyrxUpdateInv = ISNULL(C.EasyrxUpdateInv, 0)'
+      '        FROM CREDITDEBITSETUP C;'
       ''
       '        SET @REG ='
       '            CASE'
@@ -8753,9 +8753,8 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       '        SET @NOREFDISP = 0;'
       ''
-      
-        '        IF ISNULL(@NOREFAUTO, 0) > 0 AND ISNULL(@CANTRECETADA, 0' +
-        ') > 0'
+      '        IF ISNULL(@NOREFAUTO, 0) > 0'
+      '           AND ISNULL(@CANTRECETADA, 0) > 0'
       '        BEGIN'
       
         '            SET @TOTALRECETADO   = (@CANTRECETADA * @NOREFAUTO) ' +
@@ -8772,19 +8771,19 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       
         '        --------------------------------------------------------' +
-        '----'
-      '        -- COMPOUND RX  (COMPOUNDCODE = 1)'
+        '--------'
+      '        -- COMPOUND RX (COMPOUNDCODE = 2)'
       
         '        --------------------------------------------------------' +
-        '----'
-      '        IF ISNULL(@COMPOUNDCODE, 0) = 1'
+        '--------'
+      '        IF ISNULL(@COMPOUNDCODE, 0) = 2'
       '        BEGIN'
       '            DECLARE @Mix TABLE'
       '            ('
       '                RowID INT IDENTITY(1,1) PRIMARY KEY,'
-      '                PRODUCT_ID INT,'
-      '                QTY DECIMAL(18,4),'
-      '                NDC NCHAR(11)'
+      '                PRODUCT_ID INT NOT NULL,'
+      '                QTY DECIMAL(18,4) NOT NULL,'
+      '                NDC NCHAR(11) NULL'
       '            );'
       ''
       '            INSERT INTO @Mix (PRODUCT_ID, QTY, NDC)'
@@ -8803,69 +8802,113 @@ object DMModifyDatabase: TDMModifyDatabase
       '            WHERE M.OTCNUMBER = @OTC_NUMBER;'
       ''
       '            DECLARE'
-      '                @RowID      INT = 1,'
+      '                @RowID      INT,'
       '                @RowCount   INT,'
       '                @ItemQty    DECIMAL(18,4),'
       '                @ItemProdID INT,'
       '                @ItemNDC    NCHAR(11);'
       ''
-      '            SELECT @RowCount = COUNT(*) FROM @Mix;'
+      '            SELECT'
+      '                @RowID = 1,'
+      '                @RowCount = COUNT(*)'
+      '            FROM @Mix;'
       ''
       '            WHILE @RowID <= @RowCount'
       '            BEGIN'
       '                SELECT'
-      '                    @ItemQty    = QTY,'
-      '                    @ItemProdID = PRODUCT_ID,'
-      '                    @ItemNDC    = NDC'
-      '                FROM @Mix'
-      '                WHERE RowID = @RowID;'
+      '                    @ItemQty    = MX.QTY,'
+      '                    @ItemProdID = MX.PRODUCT_ID,'
+      '                    @ItemNDC    = MX.NDC'
+      '                FROM @Mix MX'
+      '                WHERE MX.RowID = @RowID;'
       ''
       '                SELECT'
-      '                    @BATCH      = I.LOTE,'
-      '                    @FECHAEXPI  = I.FECHA_EXPIRACION,'
-      '                    @BALANCE    = I.QTYINVENTARIO,'
-      '                    @CONTROLADO = I.CONTROLADO'
-      '                FROM INVENTARIOPISO I'
-      '                WHERE I.PRODUCTNO = @ItemProdID;'
+      '                    @BATCH      = IP.LOTE,'
+      '                    @FECHAEXPI  = IP.FECHA_EXPIRACION,'
+      '                    @BALANCE    = IP.QTYINVENTARIO,'
+      '                    @CONTROLADO = IP.CONTROLADO'
+      '                FROM INVENTARIOPISO IP'
+      '                WHERE IP.PRODUCTNO = @ItemProdID;'
       ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Main inventory always updates'
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                UPDATE INVENTARIOPISO'
+      
+        '                   SET QTYINVENTARIO = ISNULL(QTYINVENTARIO, 0) ' +
+        '- @ItemQty'
+      '                 WHERE PRODUCTNO = @ItemProdID;'
+      ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Optional Piso buckets'
+      
+        '                ------------------------------------------------' +
+        '--------'
       '                IF @F340B = 1'
+      '                BEGIN'
       '                    UPDATE INVENTARIOPISO'
       
         '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
         '@ItemQty'
       '                     WHERE PRODUCTNO = @ItemProdID;'
-      '                ELSE IF @LTC = 1'
-      '                    UPDATE INVENTARIOPISO'
-      
-        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @I' +
-        'temQty'
-      '                     WHERE PRODUCTNO = @ItemProdID;'
-      '                ELSE'
-      '                    UPDATE INVENTARIOPISO'
-      
-        '                       SET QTYINVENTARIO = ISNULL(QTYINVENTARIO,' +
-        ' 0) - @ItemQty'
-      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                END;'
       ''
-      '                IF @F340B = 1'
-      '                    UPDATE INVENTARIO_ITEM'
-      
-        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
-        '@ItemQty'
-      '                     WHERE PRODUCTNO = @ItemProdID;'
-      '                ELSE IF @LTC = 1'
-      '                    UPDATE INVENTARIO_ITEM'
+      '                IF @LTC = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIOPISO'
       
         '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @I' +
         'temQty'
       '                     WHERE PRODUCTNO = @ItemProdID;'
-      '                ELSE'
+      '                END;'
+      ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Item buckets'
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                IF ISNULL(@F340B, 0) = 0 AND ISNULL(@LTC, 0) = 0'
+      '                BEGIN'
       '                    UPDATE INVENTARIO_ITEM'
       
         '                       SET INVREG_QT = ISNULL(INVREG_QT, 0) - @I' +
         'temQty'
       '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                END;'
       ''
+      '                IF @F340B = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@ItemQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                END;'
+      ''
+      '                IF @LTC = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @I' +
+        'temQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                END;'
+      ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Controlled log'
+      
+        '                ------------------------------------------------' +
+        '--------'
       '                IF (@CONTROLADO <> '#39'RX'#39')'
       '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39#39')'
       '                   AND (@CONTROLADO <> '#39'OTC'#39')'
@@ -8884,14 +8927,14 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       '                    SELECT'
       
-        '                        @PATIENT = RTRIM(P.APELLIDOPATERNO) + '#39' ' +
-        #39' +'
+        '                        @PATIENT = RTRIM(PA.APELLIDOPATERNO) + '#39 +
+        ' '#39' +'
       
-        '                                   RTRIM(P.APELLIDOMATERNO) + '#39' ' +
-        #39' +'
-      '                                   RTRIM(P.NOMBRE)'
-      '                    FROM PACIENTES P'
-      '                    WHERE P.NUMEROCLIENTE = @NOCLIENTE;'
+        '                                   RTRIM(PA.APELLIDOMATERNO) + '#39 +
+        ' '#39' +'
+      '                                   RTRIM(PA.NOMBRE)'
+      '                    FROM PACIENTES PA'
+      '                    WHERE PA.NUMEROCLIENTE = @NOCLIENTE;'
       ''
       '                    EXEC dbo.ADD_EDIT_CONTROLED_LOG'
       '                         @NORX,'
@@ -8915,6 +8958,13 @@ object DMModifyDatabase: TDMModifyDatabase
       '                         @NOREFDISP;'
       '                END;'
       ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- EasyRx inventory update'
+      
+        '                ------------------------------------------------' +
+        '--------'
       '                IF @EasyrxUpdateInv = 1'
       '                BEGIN'
       '                    EXEC dbo.INVENTORY_ERX'
@@ -8931,71 +8981,114 @@ object DMModifyDatabase: TDMModifyDatabase
       '        END'
       
         '        --------------------------------------------------------' +
-        '----'
-      '        -- NON-COMPOUND RX'
+        '--------'
+      
+        '        -- NON-COMPOUND RX (COMPOUNDCODE = 1 or anything else no' +
+        't 2)'
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        ELSE'
       '        BEGIN'
       '            SELECT'
-      '                @RECETARIO_PISO = I.RECETARIO,'
-      '                @METRIC_SIZE    = I.METRICSIZE,'
-      '                @PACKAGE_SIZE   = I.PACKAGESIZE'
-      '            FROM INVENTARIOPISO I'
-      '            WHERE I.PRODUCTNO = @PRODUCTID;'
+      '                @RECETARIO_PISO = IP.RECETARIO,'
+      '                @METRIC_SIZE    = IP.METRICSIZE,'
+      '                @PACKAGE_SIZE   = IP.PACKAGESIZE'
+      '            FROM INVENTARIOPISO IP'
+      '            WHERE IP.PRODUCTNO = @PRODUCTID;'
       ''
       '            IF @RECETARIO_PISO = '#39'R'#39
       '            BEGIN'
-      '                IF @F340B = 1'
-      '                    UPDATE INVENTARIOPISO'
       
-        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
-        '@QTY'
-      '                     WHERE PRODUCTNO = @PRODUCTID;'
-      '                ELSE IF @LTC = 1'
-      '                    UPDATE INVENTARIOPISO'
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Main inventory always updates'
       
-        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @Q' +
-        'TY'
-      '                     WHERE PRODUCTNO = @PRODUCTID;'
-      '                ELSE'
-      '                    UPDATE INVENTARIOPISO'
+        '                ------------------------------------------------' +
+        '--------'
+      '                UPDATE INVENTARIOPISO'
       
-        '                       SET QTYINVENTARIO = ISNULL(QTYINVENTARIO,' +
-        ' 0) - @QTY'
-      '                     WHERE PRODUCTNO = @PRODUCTID;'
+        '                   SET QTYINVENTARIO = ISNULL(QTYINVENTARIO, 0) ' +
+        '- @QTY'
+      '                 WHERE PRODUCTNO = @PRODUCTID;'
       ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Optional Piso buckets'
+      
+        '                ------------------------------------------------' +
+        '--------'
       '                IF @F340B = 1'
-      '                    UPDATE INVENTARIO_ITEM'
+      '                BEGIN'
+      '                    UPDATE INVENTARIOPISO'
       
         '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
         '@QTY'
       '                     WHERE PRODUCTNO = @PRODUCTID;'
-      '                ELSE IF @LTC = 1'
-      '                    UPDATE INVENTARIO_ITEM'
+      '                END;'
+      ''
+      '                IF @LTC = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIOPISO'
       
         '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @Q' +
         'TY'
       '                     WHERE PRODUCTNO = @PRODUCTID;'
-      '                ELSE'
+      '                END;'
+      ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Item buckets'
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                IF ISNULL(@F340B, 0) = 0 AND ISNULL(@LTC, 0) = 0'
+      '                BEGIN'
       '                    UPDATE INVENTARIO_ITEM'
       
         '                       SET INVREG_QT = ISNULL(INVREG_QT, 0) - @Q' +
         'TY'
       '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                END;'
       ''
+      '                IF @F340B = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@QTY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                END;'
+      ''
+      '                IF @LTC = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @Q' +
+        'TY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                END;'
+      ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- Controlled log'
+      
+        '                ------------------------------------------------' +
+        '--------'
       '                IF (@CONTROLADO <> '#39'RX'#39')'
       '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39#39')'
       '                   AND (@CONTROLADO <> '#39'OTC'#39')'
       '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39'DME'#39')'
       '                BEGIN'
       '                    SELECT'
-      '                        @BATCH     = I.LOTE,'
-      '                        @FECHAEXPI = I.FECHA_EXPIRACION,'
-      '                        @BALANCE   = I.QTYINVENTARIO'
-      '                    FROM INVENTARIOPISO I'
-      '                    WHERE I.PRODUCTNO = @PRODUCTID;'
+      '                        @BATCH     = IP.LOTE,'
+      '                        @FECHAEXPI = IP.FECHA_EXPIRACION,'
+      '                        @BALANCE   = IP.QTYINVENTARIO'
+      '                    FROM INVENTARIOPISO IP'
+      '                    WHERE IP.PRODUCTNO = @PRODUCTID;'
       ''
       '                    SELECT'
       
@@ -9010,14 +9103,14 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       '                    SELECT'
       
-        '                        @PATIENT = RTRIM(P.APELLIDOPATERNO) + '#39' ' +
-        #39' +'
+        '                        @PATIENT = RTRIM(PA.APELLIDOPATERNO) + '#39 +
+        ' '#39' +'
       
-        '                                   RTRIM(P.APELLIDOMATERNO) + '#39' ' +
-        #39' +'
-      '                                   RTRIM(P.NOMBRE)'
-      '                    FROM PACIENTES P'
-      '                    WHERE P.NUMEROCLIENTE = @NOCLIENTE;'
+        '                                   RTRIM(PA.APELLIDOMATERNO) + '#39 +
+        ' '#39' +'
+      '                                   RTRIM(PA.NOMBRE)'
+      '                    FROM PACIENTES PA'
+      '                    WHERE PA.NUMEROCLIENTE = @NOCLIENTE;'
       ''
       '                    EXEC dbo.ADD_EDIT_CONTROLED_LOG'
       '                         @NORX,'
@@ -9041,6 +9134,13 @@ object DMModifyDatabase: TDMModifyDatabase
       '                         @NOREFDISP;'
       '                END;'
       ''
+      
+        '                ------------------------------------------------' +
+        '--------'
+      '                -- EasyRx inventory update'
+      
+        '                ------------------------------------------------' +
+        '--------'
       '                IF @EasyrxUpdateInv = 1'
       '                BEGIN'
       '                    EXEC dbo.INVENTORY_ERX'
@@ -9067,16 +9167,34 @@ object DMModifyDatabase: TDMModifyDatabase
         '                   SET QTYINVENTARIO = ISNULL(QTYINVENTARIO, 0) ' +
         '- @QTY'
       '                 WHERE PRODUCTNO = @PRODUCTID;'
+      ''
+      '                IF @F340B = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@QTY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                END;'
+      ''
+      '                IF @LTC = 1'
+      '                BEGIN'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @Q' +
+        'TY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                END;'
       '            END;'
       '        END;'
       ''
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        -- Print queue'
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        IF @IMPRIMIR = 1'
       '        BEGIN'
       '            IF LTRIM(RTRIM(ISNULL(@LABEL_NAME, '#39#39'))) = '#39#39
@@ -9108,23 +9226,23 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        -- Reversal cleanup'
       
         '        --------------------------------------------------------' +
-        '----'
+        '--------'
       '        IF @REVERSAL = 1'
       '        BEGIN'
       '            UPDATE OTC'
       '               SET QTY = 0'
       '             WHERE OTCNUMBER = @OTC_NUMBER;'
       ''
-      '            IF @COMPOUNDCODE = 1'
+      '            IF @COMPOUNDCODE = 2'
       '            BEGIN'
       '                UPDATE MEZCLAS'
       '                   SET CANTIDADDESPACHADA = 0'
       '                 WHERE OTCNUMBER = @OTC_NUMBER;'
-      '            END'
+      '            END;'
       '        END;'
       ''
       '        COMMIT TRANSACTION;'
@@ -9134,16 +9252,16 @@ object DMModifyDatabase: TDMModifyDatabase
       '            ROLLBACK TRANSACTION;'
       ''
       '        DECLARE'
-      '            @ErrMsg NVARCHAR(4000),'
-      '            @ErrSeverity INT,'
-      '            @ErrState INT;'
+      '            @ErrorMessage NVARCHAR(4000),'
+      '            @ErrorSeverity INT,'
+      '            @ErrorState INT;'
       ''
       '        SELECT'
-      '            @ErrMsg = ERROR_MESSAGE(),'
-      '            @ErrSeverity = ERROR_SEVERITY(),'
-      '            @ErrState = ERROR_STATE();'
+      '            @ErrorMessage = ERROR_MESSAGE(),'
+      '            @ErrorSeverity = ERROR_SEVERITY(),'
+      '            @ErrorState = ERROR_STATE();'
       ''
-      '        RAISERROR(@ErrMsg, @ErrSeverity, @ErrState);'
+      '        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);'
       '    END CATCH'
       'END;')
     Left = 2320
