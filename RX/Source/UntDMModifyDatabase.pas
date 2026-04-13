@@ -43,9 +43,6 @@ type
     dsPriceTable: TDataSource;
     sqlPriceTable_FD: TFDQuery;
     BACKUPDATABASE: TFDQuery;
-    CALC_HEAD_TOTALS: TFDQuery;
-    CALC_ORDER_TOTAL: TFDQuery;
-    CALC_TOTAL_RXDISPONIBLE: TFDQuery;
     CALCRXDISPONIBLE: TFDQuery;
     CALCULARAUSPICIO: TFDQuery;
     DELETE_PRINT_QUERIES: TFDQuery;
@@ -55,7 +52,6 @@ type
     DEUDA: TFDQuery;
     EM_UPDATEINV: TFDQuery;
     FIXGROUP: TFDQuery;
-    GROUP_PROD_POS: TFDQuery;
     INSERT_ESIGNATURE: TFDQuery;
     INSERT_OTC: TFDQuery;
     INSERT_PRINT_Q: TFDQuery;
@@ -191,8 +187,6 @@ type
     Index_Prescription_NumeroReceta: TFDQuery;
     VERIFYRXTEMP1: TFDQuery;
     TRANSACTIONDETAIL_UPDATEPRICE_MOBILE: TFDQuery;
-    STARTBANK: TFDQuery;
-    GETNEWHEADER: TFDQuery;
     INSERT_ESIGNATURE_PICTURE: TFDQuery;
     RXTEMP1: TFDQuery;
     INSERT_CLAIM: TFDQuery;
@@ -449,7 +443,6 @@ type
     DropPrimaryKeyPrescriptioon: TFDQuery;
     CHANGE_PATIENT: TFDQuery;
     CHANGE_PRESCRIBER: TFDQuery;
-    CALC_DAILYTOTALS_READ: TFDQuery;
     UPDATE_PATPLAN_PLANNUMBER: TFDQuery;
     cdsOTCOTCNUMBER: TAutoIncField;
     cdsOTCTOTAL: TSingleField;
@@ -775,40 +768,12 @@ type
     PICKUP_TF: TFDQuery;
     CLOSE_BALANCE: TFDQuery;
     INSERT_PASSWORD_LOG: TFDQuery;
-    TIME_STAMP: TFDQuery;
     UPDATE_TH_BALANCE: TFDQuery;
     UPDATE_TH_BALANCE_DEL: TFDQuery;
     OPEN_TABS: TFDQuery;
     CALC_TAB_BALANCE: TFDQuery;
-    CANCEL_TABS: TFDQuery;
-    NEXT_MAIN_COURSE_ID: TFDQuery;
-    POS_INVENTORY_CONTROL: TFDQuery;
-    CALC_DAILYTOTALS_READ_REST: TFDQuery;
-    CALC_HEAD_TOTALS_DEL_TRIG: TFDQuery;
-    CALC_HEAD_TOTALS_TRIG: TFDQuery;
-    INSERT_NEWTAB: TFDQuery;
-    UPDATE_TIME_STAMP: TFDQuery;
-    HOLD_SAVE_TRANSACTION: TFDQuery;
-    POS_DELETE_OPEN_TRANSACTIONS: TFDQuery;
-    TIMECARD_TOTALHOURSWORKED: TFDQuery;
-    UPDATE_TRANSACTION_HEADER: TFDQuery;
     PRICE_UPDATE: TFDQuery;
-    POS_INSERT_EDIT_INVENTORY: TFDQuery;
-    CAL_BALANCE_TEMP: TFDQuery;
-    CALC_BALANCE_DELETE: TFDQuery;
-    CALC_BALANCE: TFDQuery;
-    POS_CANCEL_TRANS: TFDQuery;
     PATIENT_HIPPA_ORIENTED: TFDQuery;
-    POS_RECALL_TRANSACTION: TFDQuery;
-    POS_SPLIT_TAB: TFDQuery;
-    POST_SHOPPER: TFDQuery;
-    CALC_CHANGE: TFDQuery;
-    POS_INSERT_BUTTON_IMAGE: TFDQuery;
-    POS_UPDATE_PRINTED: TFDQuery;
-    POS_INSERT_DAILYTOTALS: TFDQuery;
-    POS_UPDATE_PAYMENTTYPE: TFDQuery;
-    POST_SHOPPER_DAILY: TFDQuery;
-    VIP: TFDQuery;
     FarmatecImages: TFDQuery;
     INSERT_SCANNED_RX: TFDQuery;
     IMAGES: TFDQuery;
@@ -829,10 +794,8 @@ type
     WORKERS_COMPENSATION_SEGMENT: TFDQuery;
     Surescripts: TFDQuery;
     SURESCRIPT_INSERT: TFDQuery;
-    CALC_COMMISSION: TFDQuery;
     SURESCRIPTS_UPDATE_SURESCRIPTS: TFDQuery;
     Reindex: TFDQuery;
-    POS_TFAM_CALC: TFDQuery;
     UpdateFromResponse: TFDQuery;
     SURESCRIPTS_RX_RENEW: TFDQuery;
     FDQuery3: TFDQuery;
@@ -864,11 +827,6 @@ type
     FDQuery4: TFDQuery;
     INSERT_NCI: TFDQuery;
     TRANSFER_PROD: TFDQuery;
-    TRANSFER_DETAIL: TFDQuery;
-    TRANSFER_HEADER: TFDQuery;
-    TRANSFERED_PRODUCTS: TFDQuery;
-    POS_ADD_EDIT_CLIENTES: TFDQuery;
-    INSERT_ICD10: TFDQuery;
     LOCK_UNLOCK: TFDQuery;
     LOCK_UNLOCK_DEL: TFDQuery;
     INSERT_PRINT_QUERIES: TFDQuery;
@@ -926,17 +884,11 @@ type
     cdsConstrainsdefinition: TWideMemoField;
     INVENTORY_CART: TFDQuery;
     INVENTORY_IMAGE: TFDQuery;
-    INSERT_EDIT_SHOPPINGCART_DETAIL: TFDQuery;
-    INSERT_EDIT_SHOPPINGCART_HEADER: TFDQuery;
-    CART_DETAIL: TFDQuery;
-    CART_HEADER: TFDQuery;
     ADD_EDIT_REFIL_QUERY: TFDQuery;
     CONTROLED_LOG: TFDQuery;
     ADD_EDIT_CONTROLED_LOG: TFDQuery;
-    CALC_CART_TOTAL: TFDQuery;
     INSERT_EDIT_PRODUCT_IMAGE: TFDQuery;
     FDQuery5: TFDQuery;
-    CALC_TOTALS_CART_HEADER: TFDQuery;
     SURESCRIPTS_ADD_NEWRX: TFDQuery;
     Surescripts_History: TFDQuery;
     SurescriptsExportToHistory: TFDQuery;
@@ -997,16 +949,9 @@ type
     UPDATE_MEZCLAS_OTCNUMBER: TFDQuery;
     ProcUPDATE_MEZCLAS_OTCNUMBER: TFDStoredProc;
     MERGE_PATIENT_DATA: TFDQuery;
-    ADD_EDIT_MOBILE_BUTTONS_DETAIL: TFDQuery;
-    ADD_EDIT_BUTTONS_MOBILE_HEADER: TFDQuery;
-    BUTTONS_MOBILE_DETAIL: TFDQuery;
-    BUTTONS_MOBILE_HEADER: TFDQuery;
-    UPDATE_BALANCE: TFDQuery;
-    UPDATE_GBY_ID: TFDQuery;
     NOTIFICATION_LOG: TFDQuery;
     INSERT_NOTIFICATION_LOG: TFDQuery;
     DRUG_EXPI_BATCH: TFDQuery;
-    payment_type: TFDQuery;
     rx_post_newrx: TFDQuery;
     INSERT_PRESCRIPTIONS: TFDQuery;
     qCreateTables: TFDQuery;
@@ -1026,11 +971,6 @@ type
     PRINTERS: TFDQuery;
     WC_PATIENTS: TFDQuery;
     OTC_NON_RX: TFDQuery;
-    POS_INSERT_EVERTEC_TRANS: TFDQuery;
-    EVERTEC: TFDQuery;
-    PAYMENT_TYPES: TFDQuery;
-    CALC_DAILYTOTALS: TFDQuery;
-    CALC_SPLIT_PAYMENT_TAX: TFDQuery;
     D0_BuidTransFile: TFDQuery;
     D0_GetFloatCharacter: TFDQuery;
     D0_COB_segment: TFDQuery;
@@ -1038,10 +978,7 @@ type
     D0_Workers_compensation: TFDQuery;
     D0_Compound_segment: TFDQuery;
     D0_Clinical_Segment: TFDQuery;
-    INSERTPOS: TFDQuery;
     SOFTWARE_VERSION: TFDQuery;
-    POS_DISCOUNT: TFDQuery;
-    BOGOF: TFDQuery;
     WC_PATIENTS_HISTORY: TFDQuery;
     RELATIONFACILITY_PAT: TFDQuery;
     RELATIONFACILITY_PRESC: TFDQuery;
@@ -1055,9 +992,6 @@ type
     INSERT_PRODUCT_SIGNATURE: TFDQuery;
     PSEUDO_SALES_LOG: TFDQuery;
     WF_UPDATE_PICKUP: TFDQuery;
-    POS_UPDATE_DEPART_ATTRIB: TFDQuery;
-    POS_GET_HANDHELDINFO: TFDQuery;
-    PAYMENT_CARD_LOG: TFDQuery;
     HCPCSCodes: TFDQuery;
     D0_BuildTransFile_schema: TFDQuery;
     D0_COB_segment_schema: TFDQuery;
@@ -1387,11 +1321,6 @@ type
     procedure DropProgrammableObjectsAndIndexes;
     function Field_exist(ColumnStr, TableStr: String): Boolean;
     function ColumnExists(const ATableName, AColumnName: string): Boolean;
-    procedure DropColumnIfExists(const ATableName, AColumnName: string);
-    function DropConstraintIfExistsSafe(const ATableName,
-      AConstraintName: string; out AError: string): Boolean;
-    function AddConstraintIfNotExistsSafe(const ATableName, AConstraintName,
-      AAddConstraintSQL: string; out AError: string): Boolean;
 
 
 
@@ -1412,7 +1341,8 @@ implementation
 
 {$R *.dfm}
 
-uses UntMain, UntDMePrescribe;
+uses UntMain, UntDMePrescribe, untCommon, UntDMIDC10;
+
 procedure TDMModifyDatabase.AddOTCFieldsAfterExecute(DataSet: TFDDataSet);
 begin
   SuccessfullyCreated('AddOTCFields');
@@ -1810,7 +1740,7 @@ begin
 
   //========== ElectrRecon =======================
   ExecQryCreate(ElectrReconcDup.SQL.Text);
-  AddConstraintIfNotExistsSafe('dbo.ElectrReconcDup',
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.ElectrReconcDup',
      'DF_ElectrReconcDup_REASON',
      'ADD  CONSTRAINT [DF_ElectrReconcDup_REASON]  DEFAULT ('+chr(39) + chr(39) +') FOR [REASON]', Err);
 
@@ -1844,47 +1774,52 @@ begin
   ExecSql('drop table dbo.ep_una');
   CreateFields('WILLCALL', 'FILL_NUMBER', 'smallint null');
   CreateFields('WILLCALLHistory', 'FILL_NUMBER', 'smallint null');
-
-  DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
-  DropColumnIfExists('INVENTARIOPISO', 'PRECIO_DACO');
-  DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
-  DropColumnIfExists('INVENTARIOPISO', 'PRECIO2');
-  DropColumnIfExists('INVENTARIOPISO', 'PRECIOVENTA2');
-  DropColumnIfExists('INVENTARIOPISO', 'ESCANEAR_BARCODEALTERNO');
-  DropColumnIfExists('INVENTARIOPISO', 'EDITAR_PRECIO_NEW');
-  DropColumnIfExists('INVENTARIOPISO', 'SALES_PROMOTION_ID');
-  DropColumnIfExists('INVENTARIOPISO', 'RECIPE_PRICE');
-  DropColumnIfExists('INVENTARIOPISO', 'RECIPE');
-  DropColumnIfExists('INVENTARIOPISO', 'MODIFIER_QTY');
-  DropColumnIfExists('INVENTARIOPISO', 'KITCHEN');
-  DropColumnIfExists('INVENTARIOPISO', 'HAS_MODIFIER');
-  DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALES_START_TIME');
-  DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALES_END_TIME');
-  DropColumnIfExists('INVENTARIOPISO', 'OTCCARD');
-  DropColumnIfExists('INVENTARIOPISO', 'HAS_MODIFIER');
-  DropColumnIfExists('INVENTARIOPISO', 'MODIFIER_QTY');
-  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_TIME');
-  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_DATE');
-  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_UNIT');
-  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_DIMENSION');
-  DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_VALUE');
+  with CommonRoutine do
+  begin
+    DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
+    DropColumnIfExists('INVENTARIOPISO', 'PRECIO_DACO');
+    DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
+    DropColumnIfExists('INVENTARIOPISO', 'PRECIO2');
+    DropColumnIfExists('INVENTARIOPISO', 'PRECIOVENTA2');
+    DropColumnIfExists('INVENTARIOPISO', 'ESCANEAR_BARCODEALTERNO');
+    DropColumnIfExists('INVENTARIOPISO', 'EDITAR_PRECIO_NEW');
+    DropColumnIfExists('INVENTARIOPISO', 'SALES_PROMOTION_ID');
+    DropColumnIfExists('INVENTARIOPISO', 'RECIPE_PRICE');
+    DropColumnIfExists('INVENTARIOPISO', 'RECIPE');
+    DropColumnIfExists('INVENTARIOPISO', 'MODIFIER_QTY');
+    DropColumnIfExists('INVENTARIOPISO', 'KITCHEN');
+    DropColumnIfExists('INVENTARIOPISO', 'HAS_MODIFIER');
+    DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALES_START_TIME');
+    DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALES_END_TIME');
+    DropColumnIfExists('INVENTARIOPISO', 'OTCCARD');
+    DropColumnIfExists('INVENTARIOPISO', 'HAS_MODIFIER');
+    DropColumnIfExists('INVENTARIOPISO', 'MODIFIER_QTY');
+    DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_TIME');
+    DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_DATE');
+    DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_UNIT');
+    DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_DIMENSION');
+    DropColumnIfExists('INVENTARIOPISO', 'MEASUREMENT_VALUE');
+  end;
 
   //========================== PRESCRIPTIONS ==================================
 
   CreateFields('PRESCRIPTIONS', 'PetID', 'INT default(0) NULL');
-  DropColumnIfExists('PRESCRIPTIONS', 'refill_automatico');
-  DropColumnIfExists('PRESCRIPTIONS', 'PRESC_SRN');
-  DropColumnIfExists('PRESCRIPTIONS', 'METRICDECIMALQUANTITY');
-  DropColumnIfExists('PRESCRIPTIONS', 'NOREFDISP');
-  DropColumnIfExists('PRESCRIPTIONS', 'ANNOTATIONS');
-  DropColumnIfExists('PRESCRIPTIONS', 'STATUS_RX');
-  DropColumnIfExists('PRESCRIPTIONS', 'HORA');
-  DropColumnIfExists('PRESCRIPTIONS', 'CONTROLADO');
-  DropColumnIfExists('PRESCRIPTIONS', 'FECHAVENTA');
-  DropColumnIfExists('PRESCRIPTIONS', 'DAW');
-  DropColumnIfExists('PRESCRIPTIONS', 'DIASSUPLIDOS');
-  DropColumnIfExists('PRESCRIPTIONS', 'COBRADO_POS');
-  DropColumnIfExists('PRESCRIPTIONS', 'DELIVERY');
+  with CommonRoutine do
+  begin
+    DropColumnIfExists('PRESCRIPTIONS', 'refill_automatico');
+    DropColumnIfExists('PRESCRIPTIONS', 'PRESC_SRN');
+    DropColumnIfExists('PRESCRIPTIONS', 'METRICDECIMALQUANTITY');
+    DropColumnIfExists('PRESCRIPTIONS', 'NOREFDISP');
+    DropColumnIfExists('PRESCRIPTIONS', 'ANNOTATIONS');
+    DropColumnIfExists('PRESCRIPTIONS', 'STATUS_RX');
+    DropColumnIfExists('PRESCRIPTIONS', 'HORA');
+    DropColumnIfExists('PRESCRIPTIONS', 'CONTROLADO');
+    DropColumnIfExists('PRESCRIPTIONS', 'FECHAVENTA');
+    DropColumnIfExists('PRESCRIPTIONS', 'DAW');
+    DropColumnIfExists('PRESCRIPTIONS', 'DIASSUPLIDOS');
+    DropColumnIfExists('PRESCRIPTIONS', 'COBRADO_POS');
+    DropColumnIfExists('PRESCRIPTIONS', 'DELIVERY');
+  end;
 
   CreateFields('PRESCRIPTIONS', 'GUID', 'VARCHAR(36) null');
   CreateFields('PRESCRIPTIONS', 'VETERINARY', 'bit NULL');
@@ -1925,11 +1860,14 @@ begin
   ExecSql('ALTER TABLE OTC DROP COLUMN IsCashSale');
   //ExecSql('ALTER TABLE OTC DROP COLUMN PAIDDATE_REC');
   ExecSql('ALTER TABLE otc ADD CONSTRAINT df_APPRISS_SENT DEFAULT 0 FOR APPRISS_SENT');
-  DropColumnIfExists('OTC', 'SCHEDULE_RX_ID_NO');
-  DropColumnIfExists('OTC', 'POST_DATE');
-  DropColumnIfExists('OTC', 'PICKEDUPBY_RELETION');
-  DropColumnIfExists('OTC', 'OTC_BARCODE');
-  DropColumnIfExists('OTC', 'DAYS_SUPLY');
+  with CommonRoutine do
+  begin
+    DropColumnIfExists('OTC', 'SCHEDULE_RX_ID_NO');
+    DropColumnIfExists('OTC', 'POST_DATE');
+    DropColumnIfExists('OTC', 'PICKEDUPBY_RELETION');
+    DropColumnIfExists('OTC', 'OTC_BARCODE');
+    DropColumnIfExists('OTC', 'DAYS_SUPLY');
+  end;
 
   ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_IOU DEFAULT 0 FOR IOU');
   CreateFields('OTC', 'INV_QTY_TODATE', 'DECIMAL(18,2) default(0) null');
@@ -2295,7 +2233,7 @@ begin
     begin
       //ExecSql('DROP TABLE dbo.ICD10');
       //ExecQryCreate(ICD10_CREATE.SQL.Text);
-      INSERT_ICD10.ExecSQL;
+      dmICD10.INSERT_ICD10.ExecSQL;
     end;
   Finally
     //
@@ -2332,8 +2270,6 @@ begin
 
   ExecQryCreate(CONTROLED_LOG.SQL.Text);
   ExecQryCreate(INVENTORY_IMAGE.SQL.Text);
-  ExecQryCreate(CART_HEADER.SQL.Text);
-  ExecQryCreate(CART_DETAIL.SQL.Text);
 
 
 
@@ -2704,9 +2640,6 @@ begin
   //==================================================
   ExecQryCreate(WORKERS_COMPENSATION_SEGMENT.SQL.Text);
   ExecQryCreate(TRANSFER_PROD.SQL.Text);
-  ExecQryCreate(TRANSFER_HEADER.SQL.Text);
-  ExecQryCreate(TRANSFER_DETAIL.SQL.Text);
-  ExecQryCreate(TRANSFERED_PRODUCTS.SQL.Text);
  //================ Prescription Temp ==========================
   SQLStr := 'IF NOT EXISTS (SELECT * FROM sys.objects WHERE name = ' + chr(39) + 'PRESCRIPTIONS_TMP' + chr(39) + ')'
     + ' BEGIN ' +
@@ -3572,7 +3505,7 @@ begin
   QBorrarNonMatchedNDC.SQL.Text := SQLStr;
   QBorrarNonMatchedNDC.ExecSQL;
   //===============================================================================
-  AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
      'DF_RX_RXORIGINCODE',
      'ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE', Err);
   //ExecQry('ALTER TABLE PRESCRIPTIONS ADD CONSTRAINT DF_RX_DIASSUPLIDOS DEFAULT 0 FOR DIASSUPLIDOS');
@@ -5163,7 +5096,6 @@ begin
   //======================= TRIGGERS ============================
   //SurescriptsExportToHistory.ExecSQL;
   ExecQryCreate(INSERT_CASH_PLAN.SQL.Text);
-  ExecQryCreate(UPDATE_GBY_ID.SQL.Text);
   ExecQryCreate(LOCK_UNLOCK.SQL.Text);
   //ExecQryCreate(LOCK_UNLOCK_DEL.SQL.Text);
   ExecQryCreate(INSERT_RXDATA.SQL.Text);
@@ -5826,186 +5758,14 @@ begin
     end;
     ExecSql('ALTER TABLE Pacientes DROP COLUMN ANIMAL_NAME');
   end;
+
 end;
 
 
-procedure TDMModifyDatabase.DropColumnIfExists(const ATableName, AColumnName: string);
-var
-  SQLText: string;
-begin
-  SQLText :=
-    'DECLARE @ConstraintName NVARCHAR(200); ' +
-    'DECLARE @SQL NVARCHAR(MAX); ' +
-
-    'SELECT @ConstraintName = dc.name ' +
-    'FROM sys.default_constraints dc ' +
-    'INNER JOIN sys.columns c ' +
-    '  ON c.default_object_id = dc.object_id ' +
-    'WHERE c.object_id = OBJECT_ID(:TableName) ' +
-    '  AND c.name = :ColumnName; ' +
-
-    'IF @ConstraintName IS NOT NULL ' +
-    'BEGIN ' +
-    '  SET @SQL = ''ALTER TABLE ' + ATableName + ' DROP CONSTRAINT ['' + @ConstraintName + '']''; ' +
-    '  EXEC(@SQL); ' +
-    'END; ' +
-
-    'IF EXISTS ( ' +
-    '    SELECT 1 ' +
-    '    FROM sys.columns ' +
-    '    WHERE name = :ColumnName2 ' +
-    '      AND object_id = OBJECT_ID(:TableName2) ' +
-    ') ' +
-    'BEGIN ' +
-    '  SET @SQL = ''ALTER TABLE ' + ATableName + ' DROP COLUMN [' + AColumnName + ']''; ' +
-    '  EXEC(@SQL); ' +
-    'END;';
-  Try
-  with FDQuery1 do
-  begin
-    Close;
-    SQL.Text := SQLText;
-    ParamByName('TableName').AsString  := ATableName;   // example: dbo.MYTABLE
-    ParamByName('ColumnName').AsString := AColumnName;  // example: MyField
-    ParamByName('TableName2').AsString := ATableName;
-    ParamByName('ColumnName2').AsString := AColumnName;
-    ExecSQL;
-  end;
-  Except
-    on E: EMSSQLNativeException do
-    begin
-      FrmMain.MemoErrors.Lines.Add(ATableName + ' ' + AColumnName +' Execute error: '+#13#10+ E.Message);
-    end;
-  End;
-end;
 
 
-function TDMModifyDatabase.DropConstraintIfExistsSafe(
-  const ATableName, AConstraintName: string;
-  out AError: string
-): Boolean;
-begin
-  Result := False;
-  AError := '';
-
-  with FDConnection1 do
-  begin
-    try
-      StartTransaction;
-
-      try
-        with FDQuery1 do
-        begin
-          Close;
-          SQL.Text :=
-            'DECLARE @TableName SYSNAME = :TableName; ' +
-            'DECLARE @ConstraintName SYSNAME = :ConstraintName; ' +
-            'DECLARE @SQL NVARCHAR(MAX); ' +
-
-            'IF EXISTS ( ' +
-            '    SELECT 1 ' +
-            '    FROM sys.objects so ' +
-            '    WHERE so.name = @ConstraintName ' +
-            '      AND so.parent_object_id = OBJECT_ID(@TableName) ' +
-            ') ' +
-            'BEGIN ' +
-            '    SET @SQL = N''ALTER TABLE '' ' +
-            '             + QUOTENAME(PARSENAME(@TableName, 2)) + ''.'' + QUOTENAME(PARSENAME(@TableName, 1)) ' +
-            '             + N'' DROP CONSTRAINT '' + QUOTENAME(@ConstraintName); ' +
-            '    EXEC sp_executesql @SQL; ' +
-            'END;';
-
-          ParamByName('TableName').AsString := ATableName;
-          ParamByName('ConstraintName').AsString := AConstraintName;
-
-          ExecSQL;
-        end;
-
-        Commit;
-        Result := True;
-
-      except
-        on E: Exception do
-        begin
-          Rollback;
-          AError := E.Message;
-          Result := False;
-        end;
-      end;
-
-    except
-      on E: Exception do
-      begin
-        AError := 'Transaction error: ' + E.Message;
-        Result := False;
-      end;
-    end;
-  end;
-end;
 
 
-function TDMModifyDatabase.AddConstraintIfNotExistsSafe(
-  const ATableName, AConstraintName, AAddConstraintSQL: string;
-  out AError: string
-): Boolean;
-begin
-  Result := False;
-  AError := '';
-
-  with FDConnection1 do
-  begin
-    try
-      StartTransaction;
-      try
-        with FDQuery1 do
-        begin
-          Close;
-          SQL.Text :=
-            'DECLARE @TableName SYSNAME = :TableName; ' +
-            'DECLARE @ConstraintName SYSNAME = :ConstraintName; ' +
-            'DECLARE @AddSQL NVARCHAR(MAX) = :AddSQL; ' +
-            'DECLARE @SQL NVARCHAR(MAX); ' +
-
-            'IF NOT EXISTS ( ' +
-            '    SELECT 1 ' +
-            '    FROM sys.objects so ' +
-            '    WHERE so.name = @ConstraintName ' +
-            '      AND so.parent_object_id = OBJECT_ID(@TableName) ' +
-            ') ' +
-            'BEGIN ' +
-            '    SET @SQL = N''ALTER TABLE '' ' +
-            '             + QUOTENAME(PARSENAME(@TableName, 2)) + ''.'' + QUOTENAME(PARSENAME(@TableName, 1)) ' +
-            '             + N'' '' + @AddSQL; ' +
-            '    EXEC sp_executesql @SQL; ' +
-            'END;';
-
-          ParamByName('TableName').AsString := ATableName;
-          ParamByName('ConstraintName').AsString := AConstraintName;
-          ParamByName('AddSQL').AsString := AAddConstraintSQL;
-
-          ExecSQL;
-        end;
-
-        Commit;
-        Result := True;
-      except
-        on E: Exception do
-        begin
-          Rollback;
-          AError := E.Message;
-          FrmMain.MemoErrors.Lines.Add(AError);
-          Result := False;
-        end;
-      end;
-    except
-      on E: Exception do
-      begin
-        AError := 'Transaction error: ' + E.Message;
-        Result := False;
-      end;
-    end;
-  end;
-end;
 
 
 
