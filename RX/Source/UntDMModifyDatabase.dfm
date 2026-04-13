@@ -8629,244 +8629,523 @@ object DMModifyDatabase: TDMModifyDatabase
     AfterExecute = INVENTORY_CONTROLAfterExecute
     Connection = FDConnection1
     SQL.Strings = (
-      'CREATE PROCEDURE [dbo].[INVENTORY_CONTROL] (@OTC_NUMBER INT,'
-      #9#9' @IMPRIMIR BIT, @LABEL_NAME NCHAR(15), @PRINTER_ID INT,'
-      #9#9' @REVERSAL BIT, @PRINTER_IP NCHAR(15))'
+      'CREATE PROCEDURE [dbo].[INVENTORY_CONTROL]'
+      '('
+      '    @OTC_NUMBER  INT,'
+      '    @IMPRIMIR    BIT,'
+      '    @LABEL_NAME  NVARCHAR(15),'
+      '    @PRINTER_ID  INT,'
+      '    @REVERSAL    BIT,'
+      '    @PRINTER_IP  NVARCHAR(50)'
+      ')'
       'AS'
-      '  DECLARE @QTY FLOAT'
-      '  DECLARE @COMPOUNDCODE INT'
-      '  DECLARE @PRODUCTID  INTEGER'
-      '  DECLARE @NORX BIGINT'
-      '  DECLARE @ATENDIDAPOR NCHAR(3)'
-      '  DECLARE @MEZCLA_TRAN_NO INT'
-      '  DECLARE @RECETARIO_PISO CHAR(1)'
-      '  DECLARE @METRIC_SIZE DECIMAL(18,2)'
-      '  DECLARE @PACKAGE_SIZE INT'
-      '  DECLARE @CONTROLADO CHAR(4)'
-      '  DECLARE @NDC NCHAR(11)'
-      '  DECLARE @PRESCRIBER NCHAR(50)'
-      '  DECLARE @PATIENT NCHAR(50)'
-      '  declare @NODOCTOR INT'
-      '  DECLARE @PRESCRIBER_ID NCHAR(15)'
-      '  DECLARE @NOCIENTE INT'
-      '  DECLARE @BATCH NCHAR(15)'
-      '  DECLARE @FECHAEXPI DATE'
-      '  DECLARE @BALANCE DECIMAL(18,2)'
-      '  DECLARE @DRUG NCHAR(30)'
-      '  DECLARE @NOREFAUTO DECIMAL(18,2)'
-      '  DECLARE @CANTRECETADA DECIMAL(18,2)'
-      '  DECLARE @TOTALDISPENSADO DECIMAL(18,2)'
-      '  DECLARE @NOREFDISP DECIMAL(18,2)'
-      '  DECLARE @TOTALRECETADO DECIMAL(18,2)'
-      '  DECLARE @CANT_DISPONIBLE DECIMAL(18,2)'
-      '  DECLARE @340B BIT'
-      '  DECLARE @LTC BIT'
-      '  DECLARE @EasyrxUpdateInv BIT'
-      '  DECLARE @REG BIT'
-      '  DECLARE @PRINTCOPIES INT'
-      '  SET NOCOUNT ON'
-      'begin'
-      '  begin transaction'
-      
-        '     SELECT @DRUG = MEDICAMENTO, @QTY = QTY, @PRODUCTID = PRODUC' +
-        'T_ID, @NORX = NUMERORECETA, @ATENDIDAPOR = ATENDIDOPOR, @MEZCLA_' +
-        'TRAN_NO = MEZCLA_TRAN_NO,'
-      
-        #9' @CONTROLADO = CONTROLADO, @NDC = NDC, @PRINTCOPIES = ISNULL(PR' +
-        'INTCOPIES,1) FROM OTC WHERE OTCNUMBER = @OTC_NUMBER;'
-      '     if @REVERSAL = 1 SELECT @QTY = @QTY-(@QTY+@QTY); '
-      
-        '     SELECT @COMPOUNDCODE = COMPOUNDCODE, @NODOCTOR = NUMERODOCT' +
-        'OR, @PRESCRIBER_ID = LICENCIA, @NOCIENTE = NUMEROCLIENTE, @NOREF' +
-        'AUTO = NUMEROREFILLSAUTORIZADOS, '
-      
-        #9' @CANTRECETADA = CANTIDADRECETADA, @CANT_DISPONIBLE = CANTIDAD_' +
-        'DISPONIBLE, @340B = isNull(F340B,0),'
-      
-        #9' @LTC = isNull(LTC,0) FROM PRESCRIPTIONS WHERE NUMERORECETA = @' +
-        'NORX;'
-      #9' SELECT @EasyrxUpdateInv=EasyrxUpdateInv FROM CREDITDEBITSETUP;'
-      #9' SELECT @REG=IIF(@340B=0 AND @LTC=0, 1, 0);'
+      'BEGIN'
+      '    SET NOCOUNT ON;'
+      '    SET XACT_ABORT ON;'
       ''
-      #9' IF @NOREFAUTO > 0 '
-      #9' begin'
-      
-        #9'   SET @TOTALRECETADO = (@CANTRECETADA * @NOREFAUTO)+@CANTRECET' +
-        'ADA;'
-      #9'   SET @TOTALDISPENSADO = @TOTALRECETADO - @CANT_DISPONIBLE;'
-      #9'   '#9'   IF @TOTALDISPENSADO > @CANTRECETADA '
-      #9'   begin'
-      #9'     SET @NOREFDISP = (@TOTALDISPENSADO / @CANTRECETADA)-1;'
-      #9'   end'
-      #9'   else'
-      #9'   begin'
-      #9'     SET @NOREFDISP = 0;'
-      #9'   end'
-      #9' end'
-      #9' else'
-      #9'    SET @NOREFDISP = 0;'
-      #9#9'IF @COMPOUNDCODE = 1'
-      #9#9'begin'
-      
-        #9#9#9'Select @RECETARIO_PISO = RECETARIO, @METRIC_SIZE = METRICSIZE' +
-        ', @PACKAGE_SIZE = PACKAGESIZE FROM INVENTARIOPISO WHERE PRODUCTN' +
-        'O = @PRODUCTID;'
-      #9#9#9'IF @RECETARIO_PISO = '#39'R'#39' '
-      #9#9#9'begin'
-      
-        #9#9#9#9'if @340B = 1 Update InventarioPiso set INV340B_QT = INV340B_' +
-        'QT - @QTY where PRODUCTNO = @PRODUCTID'
-      
-        #9#9#9#9'else if @LTC = 1 Update InventarioPiso set LTC = LTC - @QTY ' +
-        'where PRODUCTNO = @PRODUCTID'
-      
-        #9#9#9#9'else Update InventarioPiso set QTYINVENTARIO = QTYINVENTARIO' +
-        ' - @QTY where PRODUCTNO = @PRODUCTID;'
-      #9#9#9#9
-      
-        #9#9#9#9'IF @LTC = 1 Update Inventario_Item set INVREG_QT = INVREG_QT' +
-        ' - @QTY where PRODUCTNO = @PRODUCTID;'#9#9#9#9
-      
-        #9#9#9#9'ELSE IF @340B = 1 Update Inventario_Item set INV340B_QT = IN' +
-        'V340B_QT - @QTY where PRODUCTNO = @PRODUCTID;'#9#9#9#9
-      
-        #9#9#9#9'ELSE  Update Inventario_Item set INVREG_QT = INVREG_QT - @QT' +
-        'Y where PRODUCTNO = @PRODUCTID;'#9#9#9#9
+      '    DECLARE'
+      '        @QTY               DECIMAL(18,4),'
+      '        @COMPOUNDCODE      INT,'
+      '        @PRODUCTID         INT,'
+      '        @NORX              BIGINT,'
+      '        @ATENDIDAPOR       NCHAR(3),'
+      '        @MEZCLA_TRAN_NO    INT,'
+      '        @RECETARIO_PISO    CHAR(1),'
+      '        @METRIC_SIZE       DECIMAL(18,4),'
+      '        @PACKAGE_SIZE      INT,'
+      '        @CONTROLADO        CHAR(4),'
+      '        @NDC               NCHAR(11),'
+      '        @PRESCRIBER        NVARCHAR(100),'
+      '        @PATIENT           NVARCHAR(100),'
+      '        @NODOCTOR          INT,'
+      '        @PRESCRIBER_ID     NCHAR(15),'
+      '        @NOCLIENTE         INT,'
+      '        @BATCH             NCHAR(15),'
+      '        @FECHAEXPI         DATE,'
+      '        @BALANCE           DECIMAL(18,4),'
+      '        @DRUG              NVARCHAR(100),'
+      '        @NOREFAUTO         DECIMAL(18,4),'
+      '        @CANTRECETADA      DECIMAL(18,4),'
+      '        @TOTALDISPENSADO   DECIMAL(18,4),'
+      '        @NOREFDISP         DECIMAL(18,4),'
+      '        @TOTALRECETADO     DECIMAL(18,4),'
+      '        @CANT_DISPONIBLE   DECIMAL(18,4),'
+      '        @F340B             BIT,'
+      '        @LTC               BIT,'
+      '        @EasyrxUpdateInv   BIT,'
+      '        @REG               BIT,'
+      '        @PRINTCOPIES       INT;'
       ''
+      '    BEGIN TRY'
+      '        BEGIN TRANSACTION;'
       ''
-      #9#9#9#9'if (@CONTROLADO <> '#39'RX'#39') and (rtrim(@CONTROLADO) <> '#39#39')'
       
-        #9#9#9#9'   and (@CONTROLADO <> '#39'OTC'#39') and (rtrim(@CONTROLADO) <> '#39'DM' +
-        'E'#39')'
-      #9#9#9#9'begin'
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- OTC'
       
-        #9#9#9#9#9'SELECT @BATCH = LOTE, @FECHAEXPI = FECHA_EXPIRACION, @BALAN' +
-        'CE = QTYINVENTARIO FROM INVENTARIOPISO where PRODUCTNO = @PRODUC' +
-        'TID; '
-      
-        #9#9#9#9#9'Select @PRESCRIBER = RTRIM(APELLIDO_PATERNO) + '#39' '#39' + RTRIM(' +
-        'APELLIDO_MATERNO) + '#39' '#39' + RTRIM(NOMBRE)  from DOCTOR where NUMER' +
-        'ODOCTOR = @NODOCTOR; '
-      
-        #9#9#9#9#9'Select @PATIENT = RTRIM(APELLIDOPATERNO) + '#39' '#39' + RTRIM(APEL' +
-        'LIDOMATERNO) + '#39' '#39' + RTRIM(NOMBRE)  from PACIENTES where NUMEROC' +
-        'LIENTE = @NOCIENTE;'
-      
-        #9#9#9#9#9'exec ADD_EDIT_CONTROLED_LOG @NORX,  @PATIENT, @PRESCRIBER, ' +
-        '@PRESCRIBER_ID, @BATCH, @FECHAEXPI, @BALANCE, @DRUG, @NDC, @ATEN' +
-        'DIDAPOR, @CONTROLADO, 0, @NODOCTOR, @NOCIENTE, @QTY, @NOCIENTE, ' +
-        '@OTC_NUMBER,0,@NOREFDISP;     '
-      #9#9#9#9'end;'
-      #9#9#9#9
-      #9#9#9#9'IF @EasyrxUpdateInv=1'
-      
-        #9#9#9#9#9'EXEC dbo.INVENTORY_ERX @sRXNum=@NORX,@NDC=@NDC ,@InvReg=@RE' +
-        'G, @Inv340B=@340B, @InvLTC=@LTC, @QTY=@QTY '
-      #9#9#9'end'
-      #9#9#9'else'
-      #9#9#9'begin'
-      #9#9#9#9'SET @QTY = ((@QTY / @METRIC_SIZE) * @PACKAGE_SIZE);'
-      
-        #9#9#9#9'Update InventarioPiso set QTYINVENTARIO = QTYINVENTARIO - @Q' +
-        'TY where PRODUCTNO = @PRODUCTID;'
-      #9#9#9'end;'
-      #9#9'end'
-      #9#9'else'
-      #9#9'begin '
-      
-        #9#9#9'DECLARE MyCursor CURSOR FOR SELECT CANTIDADDESPACHADA, PRODUC' +
-        'T_ID from MEZCLAS where OTCNUMBER = @OTC_NUMBER;'
-      #9#9#9'OPEN MyCursor'
-      #9#9#9'FETCH NEXT FROM MyCursor'
-      #9#9#9'INTO @QTY,@PRODUCTID'
-      #9#9#9'WHILE @@FETCH_STATUS = 0'
-      #9#9#9'BEGIN'
-      
-        #9#9#9#9'SELECT @BATCH = LOTE, @FECHAEXPI = FECHA_EXPIRACION, @BALANC' +
-        'E = QTYINVENTARIO, @CONTROLADO = CONTROLADO FROM INVENTARIOPISO ' +
-        'where PRODUCTNO = @PRODUCTID;'#9#9' '
-      #9#9#9#9'if @REVERSAL = 1 SELECT @QTY = @QTY-(@QTY+@QTY);'
-      
-        #9#9#9#9'if @340B = 1 Update InventarioPiso set INV340B_QT = INV340B_' +
-        'QT - @QTY where PRODUCTNO = @PRODUCTID'
-      
-        #9#9#9#9'else if @LTC = 1 Update InventarioPiso set LTC = LTC - @QTY ' +
-        'where PRODUCTNO = @PRODUCTID'
-      
-        #9#9#9#9'else Update InventarioPiso set QTYINVENTARIO = QTYINVENTARIO' +
-        ' - @QTY where PRODUCTNO = @PRODUCTID;'
-      #9#9#9#9
-      
-        #9#9#9#9'IF @LTC = 1 Update Inventario_Item set INVREG_QT = INVREG_QT' +
-        ' - @QTY where PRODUCTNO = @PRODUCTID;'#9#9#9#9
-      
-        #9#9#9#9'ELSE IF @340B = 1 Update Inventario_Item set INV340B_QT = IN' +
-        'V340B_QT - @QTY where PRODUCTNO = @PRODUCTID;'#9#9#9#9
-      
-        #9#9#9#9'ELSE  Update Inventario_Item set INVREG_QT = INVREG_QT - @QT' +
-        'Y where PRODUCTNO = @PRODUCTID;'#9
+        '        --------------------------------------------------------' +
+        '----'
+      '        SELECT'
+      '            @DRUG           = OTC.MEDICAMENTO,'
+      '            @QTY            = OTC.QTY,'
+      '            @PRODUCTID      = OTC.PRODUCT_ID,'
+      '            @NORX           = OTC.NUMERORECETA,'
+      '            @ATENDIDAPOR    = OTC.ATENDIDOPOR,'
+      '            @MEZCLA_TRAN_NO = OTC.MEZCLA_TRAN_NO,'
+      '            @CONTROLADO     = OTC.CONTROLADO,'
+      '            @NDC            = OTC.NDC,'
+      '            @PRINTCOPIES    = ISNULL(OTC.PRINTCOPIES, 1)'
+      '        FROM OTC'
+      '        WHERE OTCNUMBER = @OTC_NUMBER;'
       ''
-      #9#9#9#9'if (@CONTROLADO <> '#39'RX'#39') and (rtrim(@CONTROLADO) <> '#39#39')'
+      '        IF @NORX IS NULL'
       
-        #9#9#9#9'   and (@CONTROLADO <> '#39'OTC'#39') and (rtrim(@CONTROLADO) <> '#39'DM' +
-        'E'#39')'
-      #9#9#9#9'begin'
-      
-        #9#9#9#9#9'Select @PRESCRIBER = RTRIM(APELLIDO_PATERNO) + '#39' '#39' + RTRIM(' +
-        'APELLIDO_MATERNO) + '#39' '#39' + RTRIM(NOMBRE)  from DOCTOR where NUMER' +
-        'ODOCTOR = @NODOCTOR; '
-      
-        #9#9#9#9#9'Select @PATIENT = RTRIM(APELLIDOPATERNO) + '#39' '#39' + RTRIM(APEL' +
-        'LIDOMATERNO) + '#39' '#39' + RTRIM(NOMBRE)  from PACIENTES where NUMEROC' +
-        'LIENTE = @NOCIENTE;'
-      
-        #9#9#9#9#9'exec ADD_EDIT_CONTROLED_LOG @NORX,  @PATIENT, @PRESCRIBER, ' +
-        '@PRESCRIBER_ID, @BATCH, @FECHAEXPI, @BALANCE, @DRUG, @NDC, @ATEN' +
-        'DIDAPOR, @CONTROLADO, 0, @NODOCTOR, @NOCIENTE, @QTY,@NOCIENTE, @' +
-        'OTC_NUMBER,0,@NOREFDISP;     '
-      #9#9#9#9'end;'
-      #9#9#9#9'FETCH NEXT FROM MyCursor'
-      #9#9#9#9'INTO @QTY,@PRODUCTID'
+        '            RAISERROR('#39'OTCNUMBER %d was not found in OTC.'#39', 16, ' +
+        '1, @OTC_NUMBER);'
       ''
-      #9#9#9#9'IF @EasyrxUpdateInv=1'
+      '        IF @REVERSAL = 1'
+      '            SET @QTY = -ISNULL(@QTY, 0);'
+      ''
       
-        #9#9#9#9#9'EXEC dbo.INVENTORY_ERX @sRXNum=@NORX,@NDC=@NDC ,@InvReg=@RE' +
-        'G, @Inv340B=@340B, @InvLTC=@LTC, @QTY=@QTY '
-      #9#9#9'END'
-      #9#9#9'CLOSE MyCursor'
-      #9#9#9'DEALLOCATE MyCursor'
-      #9#9'end;'
-      '     if @IMPRIMIR = 1 '
-      '     begin'#9
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- PRESCRIPTIONS'
       
-        '       IF (LTRIM(@LABEL_NAME) = '#39#39') SELECT @LABEL_NAME = '#39'DEFAUL' +
-        'T'#39';   '
-      '       INSERT INTO [dbo].[PRINT_QUERIES]'
-      #9#9'([RX_ID]'
-      #9#9',[COPIES]'
-      #9#9',[RX_OTC]'
-      #9#9',[LABEL_NAME]'
-      #9#9',[TYPIST]'
-      #9#9',[PRINTTOSCREEN]'
-      #9#9',[PRINTER_ID]'
-      #9#9',[PRINTER_IP])'
-      '       VALUES'
+        '        --------------------------------------------------------' +
+        '----'
+      '        SELECT'
+      '            @COMPOUNDCODE    = P.COMPOUNDCODE,'
+      '            @NODOCTOR        = P.NUMERODOCTOR,'
+      '            @PRESCRIBER_ID   = P.LICENCIA,'
+      '            @NOCLIENTE       = P.NUMEROCLIENTE,'
+      '            @NOREFAUTO       = P.NUMEROREFILLSAUTORIZADOS,'
+      '            @CANTRECETADA    = P.CANTIDADRECETADA,'
+      '            @CANT_DISPONIBLE = P.CANTIDAD_DISPONIBLE,'
+      '            @F340B           = ISNULL(P.F340B, 0),'
+      '            @LTC             = ISNULL(P.LTC, 0)'
+      '        FROM PRESCRIPTIONS P'
+      '        WHERE P.NUMERORECETA = @NORX;'
+      ''
+      '        IF @NOCLIENTE IS NULL'
       
-        '         (@OTC_NUMBER, @PRINTCOPIES, '#39'RX'#39', @LABEL_NAME, @ATENDID' +
-        'APOR, 0, @PRINTER_ID, @PRINTER_IP)'
-      '     end;'
-      '     IF @REVERSAL = 1 '
-      '     BEGIN'
-      '       UPDATE OTC SET QTY = 0  WHERE OTCNUMBER = @OTC_NUMBER;'
-      '       IF @COMPOUNDCODE = 2'
-      '       BEGIN'
+        '            RAISERROR('#39'Prescription %d was not found in PRESCRIP' +
+        'TIONS.'#39', 16, 1, @NORX);'
+      ''
       
-        '         UPDATE MEZCLAS SET CANTIDADDESPACHADA = 0 WHERE NO_TRAN' +
-        'S = @MEZCLA_TRAN_NO;'
-      '       END;'
-      '     END;'
-      '  commit'
-      'end;')
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- Setup'
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        SELECT TOP (1)'
+      '            @EasyrxUpdateInv = ISNULL(EasyrxUpdateInv, 0)'
+      '        FROM CREDITDEBITSETUP;'
+      ''
+      '        SET @REG ='
+      '            CASE'
+      
+        '                WHEN ISNULL(@F340B, 0) = 0 AND ISNULL(@LTC, 0) =' +
+        ' 0 THEN 1'
+      '                ELSE 0'
+      '            END;'
+      ''
+      '        SET @NOREFDISP = 0;'
+      ''
+      
+        '        IF ISNULL(@NOREFAUTO, 0) > 0 AND ISNULL(@CANTRECETADA, 0' +
+        ') > 0'
+      '        BEGIN'
+      
+        '            SET @TOTALRECETADO   = (@CANTRECETADA * @NOREFAUTO) ' +
+        '+ @CANTRECETADA;'
+      
+        '            SET @TOTALDISPENSADO = @TOTALRECETADO - ISNULL(@CANT' +
+        '_DISPONIBLE, 0);'
+      ''
+      '            IF @TOTALDISPENSADO > @CANTRECETADA'
+      
+        '                SET @NOREFDISP = (@TOTALDISPENSADO / @CANTRECETA' +
+        'DA) - 1;'
+      '        END;'
+      ''
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- COMPOUND RX  (COMPOUNDCODE = 1)'
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        IF ISNULL(@COMPOUNDCODE, 0) = 1'
+      '        BEGIN'
+      '            DECLARE @Mix TABLE'
+      '            ('
+      '                RowID INT IDENTITY(1,1) PRIMARY KEY,'
+      '                PRODUCT_ID INT,'
+      '                QTY DECIMAL(18,4),'
+      '                NDC NCHAR(11)'
+      '            );'
+      ''
+      '            INSERT INTO @Mix (PRODUCT_ID, QTY, NDC)'
+      '            SELECT'
+      '                M.PRODUCT_ID,'
+      '                CASE'
+      
+        '                    WHEN @REVERSAL = 1 THEN -ISNULL(M.CANTIDADDE' +
+        'SPACHADA, 0)'
+      '                    ELSE ISNULL(M.CANTIDADDESPACHADA, 0)'
+      '                END,'
+      '                IP.NDC'
+      '            FROM MEZCLAS M'
+      '            LEFT JOIN INVENTARIOPISO IP'
+      '                ON IP.PRODUCTNO = M.PRODUCT_ID'
+      '            WHERE M.OTCNUMBER = @OTC_NUMBER;'
+      ''
+      '            DECLARE'
+      '                @RowID      INT = 1,'
+      '                @RowCount   INT,'
+      '                @ItemQty    DECIMAL(18,4),'
+      '                @ItemProdID INT,'
+      '                @ItemNDC    NCHAR(11);'
+      ''
+      '            SELECT @RowCount = COUNT(*) FROM @Mix;'
+      ''
+      '            WHILE @RowID <= @RowCount'
+      '            BEGIN'
+      '                SELECT'
+      '                    @ItemQty    = QTY,'
+      '                    @ItemProdID = PRODUCT_ID,'
+      '                    @ItemNDC    = NDC'
+      '                FROM @Mix'
+      '                WHERE RowID = @RowID;'
+      ''
+      '                SELECT'
+      '                    @BATCH      = I.LOTE,'
+      '                    @FECHAEXPI  = I.FECHA_EXPIRACION,'
+      '                    @BALANCE    = I.QTYINVENTARIO,'
+      '                    @CONTROLADO = I.CONTROLADO'
+      '                FROM INVENTARIOPISO I'
+      '                WHERE I.PRODUCTNO = @ItemProdID;'
+      ''
+      '                IF @F340B = 1'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@ItemQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                ELSE IF @LTC = 1'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @I' +
+        'temQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                ELSE'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET QTYINVENTARIO = ISNULL(QTYINVENTARIO,' +
+        ' 0) - @ItemQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      ''
+      '                IF @F340B = 1'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@ItemQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                ELSE IF @LTC = 1'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @I' +
+        'temQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      '                ELSE'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INVREG_QT = ISNULL(INVREG_QT, 0) - @I' +
+        'temQty'
+      '                     WHERE PRODUCTNO = @ItemProdID;'
+      ''
+      '                IF (@CONTROLADO <> '#39'RX'#39')'
+      '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39#39')'
+      '                   AND (@CONTROLADO <> '#39'OTC'#39')'
+      '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39'DME'#39')'
+      '                BEGIN'
+      '                    SELECT'
+      
+        '                        @PRESCRIBER = RTRIM(D.APELLIDO_PATERNO) ' +
+        '+ '#39' '#39' +'
+      
+        '                                      RTRIM(D.APELLIDO_MATERNO) ' +
+        '+ '#39' '#39' +'
+      '                                      RTRIM(D.NOMBRE)'
+      '                    FROM DOCTOR D'
+      '                    WHERE D.NUMERODOCTOR = @NODOCTOR;'
+      ''
+      '                    SELECT'
+      
+        '                        @PATIENT = RTRIM(P.APELLIDOPATERNO) + '#39' ' +
+        #39' +'
+      
+        '                                   RTRIM(P.APELLIDOMATERNO) + '#39' ' +
+        #39' +'
+      '                                   RTRIM(P.NOMBRE)'
+      '                    FROM PACIENTES P'
+      '                    WHERE P.NUMEROCLIENTE = @NOCLIENTE;'
+      ''
+      '                    EXEC dbo.ADD_EDIT_CONTROLED_LOG'
+      '                         @NORX,'
+      '                         @PATIENT,'
+      '                         @PRESCRIBER,'
+      '                         @PRESCRIBER_ID,'
+      '                         @BATCH,'
+      '                         @FECHAEXPI,'
+      '                         @BALANCE,'
+      '                         @DRUG,'
+      '                         @ItemNDC,'
+      '                         @ATENDIDAPOR,'
+      '                         @CONTROLADO,'
+      '                         0,'
+      '                         @NODOCTOR,'
+      '                         @NOCLIENTE,'
+      '                         @ItemQty,'
+      '                         @NOCLIENTE,'
+      '                         @OTC_NUMBER,'
+      '                         0,'
+      '                         @NOREFDISP;'
+      '                END;'
+      ''
+      '                IF @EasyrxUpdateInv = 1'
+      '                BEGIN'
+      '                    EXEC dbo.INVENTORY_ERX'
+      '                         @sRXNum  = @NORX,'
+      '                         @NDC     = @ItemNDC,'
+      '                         @InvReg  = @REG,'
+      '                         @Inv340B = @F340B,'
+      '                         @InvLTC  = @LTC,'
+      '                         @QTY     = @ItemQty;'
+      '                END;'
+      ''
+      '                SET @RowID = @RowID + 1;'
+      '            END;'
+      '        END'
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- NON-COMPOUND RX'
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        ELSE'
+      '        BEGIN'
+      '            SELECT'
+      '                @RECETARIO_PISO = I.RECETARIO,'
+      '                @METRIC_SIZE    = I.METRICSIZE,'
+      '                @PACKAGE_SIZE   = I.PACKAGESIZE'
+      '            FROM INVENTARIOPISO I'
+      '            WHERE I.PRODUCTNO = @PRODUCTID;'
+      ''
+      '            IF @RECETARIO_PISO = '#39'R'#39
+      '            BEGIN'
+      '                IF @F340B = 1'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@QTY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                ELSE IF @LTC = 1'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @Q' +
+        'TY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                ELSE'
+      '                    UPDATE INVENTARIOPISO'
+      
+        '                       SET QTYINVENTARIO = ISNULL(QTYINVENTARIO,' +
+        ' 0) - @QTY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      ''
+      '                IF @F340B = 1'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INV340B_QT = ISNULL(INV340B_QT, 0) - ' +
+        '@QTY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                ELSE IF @LTC = 1'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INVLTC_QT = ISNULL(INVLTC_QT, 0) - @Q' +
+        'TY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      '                ELSE'
+      '                    UPDATE INVENTARIO_ITEM'
+      
+        '                       SET INVREG_QT = ISNULL(INVREG_QT, 0) - @Q' +
+        'TY'
+      '                     WHERE PRODUCTNO = @PRODUCTID;'
+      ''
+      '                IF (@CONTROLADO <> '#39'RX'#39')'
+      '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39#39')'
+      '                   AND (@CONTROLADO <> '#39'OTC'#39')'
+      '                   AND (RTRIM(ISNULL(@CONTROLADO, '#39#39')) <> '#39'DME'#39')'
+      '                BEGIN'
+      '                    SELECT'
+      '                        @BATCH     = I.LOTE,'
+      '                        @FECHAEXPI = I.FECHA_EXPIRACION,'
+      '                        @BALANCE   = I.QTYINVENTARIO'
+      '                    FROM INVENTARIOPISO I'
+      '                    WHERE I.PRODUCTNO = @PRODUCTID;'
+      ''
+      '                    SELECT'
+      
+        '                        @PRESCRIBER = RTRIM(D.APELLIDO_PATERNO) ' +
+        '+ '#39' '#39' +'
+      
+        '                                      RTRIM(D.APELLIDO_MATERNO) ' +
+        '+ '#39' '#39' +'
+      '                                      RTRIM(D.NOMBRE)'
+      '                    FROM DOCTOR D'
+      '                    WHERE D.NUMERODOCTOR = @NODOCTOR;'
+      ''
+      '                    SELECT'
+      
+        '                        @PATIENT = RTRIM(P.APELLIDOPATERNO) + '#39' ' +
+        #39' +'
+      
+        '                                   RTRIM(P.APELLIDOMATERNO) + '#39' ' +
+        #39' +'
+      '                                   RTRIM(P.NOMBRE)'
+      '                    FROM PACIENTES P'
+      '                    WHERE P.NUMEROCLIENTE = @NOCLIENTE;'
+      ''
+      '                    EXEC dbo.ADD_EDIT_CONTROLED_LOG'
+      '                         @NORX,'
+      '                         @PATIENT,'
+      '                         @PRESCRIBER,'
+      '                         @PRESCRIBER_ID,'
+      '                         @BATCH,'
+      '                         @FECHAEXPI,'
+      '                         @BALANCE,'
+      '                         @DRUG,'
+      '                         @NDC,'
+      '                         @ATENDIDAPOR,'
+      '                         @CONTROLADO,'
+      '                         0,'
+      '                         @NODOCTOR,'
+      '                         @NOCLIENTE,'
+      '                         @QTY,'
+      '                         @NOCLIENTE,'
+      '                         @OTC_NUMBER,'
+      '                         0,'
+      '                         @NOREFDISP;'
+      '                END;'
+      ''
+      '                IF @EasyrxUpdateInv = 1'
+      '                BEGIN'
+      '                    EXEC dbo.INVENTORY_ERX'
+      '                         @sRXNum  = @NORX,'
+      '                         @NDC     = @NDC,'
+      '                         @InvReg  = @REG,'
+      '                         @Inv340B = @F340B,'
+      '                         @InvLTC  = @LTC,'
+      '                         @QTY     = @QTY;'
+      '                END;'
+      '            END'
+      '            ELSE'
+      '            BEGIN'
+      '                SET @QTY ='
+      '                    CASE'
+      '                        WHEN ISNULL(@METRIC_SIZE, 0) = 0 THEN 0'
+      
+        '                        ELSE ((@QTY / @METRIC_SIZE) * ISNULL(@PA' +
+        'CKAGE_SIZE, 0))'
+      '                    END;'
+      ''
+      '                UPDATE INVENTARIOPISO'
+      
+        '                   SET QTYINVENTARIO = ISNULL(QTYINVENTARIO, 0) ' +
+        '- @QTY'
+      '                 WHERE PRODUCTNO = @PRODUCTID;'
+      '            END;'
+      '        END;'
+      ''
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- Print queue'
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        IF @IMPRIMIR = 1'
+      '        BEGIN'
+      '            IF LTRIM(RTRIM(ISNULL(@LABEL_NAME, '#39#39'))) = '#39#39
+      '                SET @LABEL_NAME = '#39'DEFAULT'#39';'
+      ''
+      '            INSERT INTO dbo.PRINT_QUERIES'
+      '            ('
+      '                RX_ID,'
+      '                COPIES,'
+      '                RX_OTC,'
+      '                LABEL_NAME,'
+      '                TYPIST,'
+      '                PRINTTOSCREEN,'
+      '                PRINTER_ID,'
+      '                PRINTER_IP'
+      '            )'
+      '            VALUES'
+      '            ('
+      '                @OTC_NUMBER,'
+      '                ISNULL(@PRINTCOPIES, 1),'
+      '                '#39'RX'#39','
+      '                @LABEL_NAME,'
+      '                @ATENDIDAPOR,'
+      '                0,'
+      '                @PRINTER_ID,'
+      '                @PRINTER_IP'
+      '            );'
+      '        END;'
+      ''
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        -- Reversal cleanup'
+      
+        '        --------------------------------------------------------' +
+        '----'
+      '        IF @REVERSAL = 1'
+      '        BEGIN'
+      '            UPDATE OTC'
+      '               SET QTY = 0'
+      '             WHERE OTCNUMBER = @OTC_NUMBER;'
+      ''
+      '            IF @COMPOUNDCODE = 1'
+      '            BEGIN'
+      '                UPDATE MEZCLAS'
+      '                   SET CANTIDADDESPACHADA = 0'
+      '                 WHERE OTCNUMBER = @OTC_NUMBER;'
+      '            END'
+      '        END;'
+      ''
+      '        COMMIT TRANSACTION;'
+      '    END TRY'
+      '    BEGIN CATCH'
+      '        IF @@TRANCOUNT > 0'
+      '            ROLLBACK TRANSACTION;'
+      ''
+      '        DECLARE'
+      '            @ErrMsg NVARCHAR(4000),'
+      '            @ErrSeverity INT,'
+      '            @ErrState INT;'
+      ''
+      '        SELECT'
+      '            @ErrMsg = ERROR_MESSAGE(),'
+      '            @ErrSeverity = ERROR_SEVERITY(),'
+      '            @ErrState = ERROR_STATE();'
+      ''
+      '        RAISERROR(@ErrMsg, @ErrSeverity, @ErrState);'
+      '    END CATCH'
+      'END;')
     Left = 2320
     Top = 736
   end
@@ -14022,133 +14301,212 @@ object DMModifyDatabase: TDMModifyDatabase
     Connection = FDConnection1
     SQL.Strings = (
       'CREATE PROCEDURE [dbo].[ADD_EDIT_PRESCRIBER]'
-      '@NUMERODOCTOR int,'
-      '@APELLIDO_MATERNO VARCHAR(15),'
-      '@APELLIDO_PATERNO VARCHAR(15),'
-      '@NOMBRE VARCHAR(12),'
-      '@DIRECCION VARCHAR(30), '
-      '@INFOADICIONAL TEXT, '
-      '@TELEFONO VARCHAR(13), '
-      '@HOME_PHONE VARCHAR(13), '
-      '@ESPECIALIDAD CHAR (30), '
-      '@FAX CHAR (13),'
-      '@DESCA VARCHAR (15), '
-      '@DEA_FEDERAL VARCHAR (15),'
-      '@LICENCIA VARCHAR (15), '
-      '@PRESCRIBER_ID_QUALIFIER CHAR(2), '
-      '@LOCATION_CODE CHAR (3), '
-      '@NPI VARCHAR (15), '
-      '@ESTADO NCHAR (2), '
-      '@CODIGO_POSTAL NCHAR (15), '
-      '@DIRECCION2 NCHAR (20),'
-      '@EMAIL NCHAR (80), '
-      '@CELULAR NCHAR (13), '
-      '@CITY NCHAR (20), '
-      '@SUFFIX_NAME NCHAR (10),'
-      '@PREFIX_NAME NCHAR (10), '
-      '@MIDDLENAME NCHAR (35),'
-      '@PHONEALT1 NCHAR (25),'
-      '@PHONEALT2 NCHAR (25),'
-      '@PHONEALT3 NCHAR (25),'
-      '@PHONEALT4 NCHAR (25),'
-      '@PHONEALT5 NCHAR (25),'
-      '@SPI NCHAR (13),'
-      '@MEDICARE_NUMBER NCHAR (35), '
-      '@MEDICAID_NUMBER NCHAR (35), '
-      '@PPO_NUMBER NCHAR (35), '
-      '@DENTIS_LICENSE_NO NCHAR (35),'
-      '@UPIN NCHAR (35), '
-      '@WP_EXTENSION NCHAR (5), '
-      '@CLINIC_NAME NCHAR (35),'
-      '@SERVICE_LEVEL TEXT,'
-      '@ACTIVE_START_TIME DATETIME,'
-      '@ACTIVE_END_TIME DATETIME,'
-      '@NUMERODOCTOR_OUTPUT int OUTPUT'
-      'AS '
-      'begin'
-      #9'BEGIN TRANSACTION '
-      #9'if @NUMERODOCTOR = 0'
-      #9'begin '
+      '    @NUMERODOCTOR INT,'
+      '    @APELLIDO_MATERNO VARCHAR(15),'
+      '    @APELLIDO_PATERNO VARCHAR(15),'
+      '    @NOMBRE VARCHAR(12),'
+      '    @DIRECCION VARCHAR(30),'
+      '    @INFOADICIONAL VARCHAR(MAX),'
+      '    @TELEFONO VARCHAR(13),'
+      '    @HOME_PHONE VARCHAR(13),'
+      '    @ESPECIALIDAD CHAR(30),'
+      '    @FAX CHAR(13),'
+      '    @DESCA VARCHAR(15),'
+      '    @DEA_FEDERAL VARCHAR(15),'
+      '    @LICENCIA VARCHAR(15),'
+      '    @PRESCRIBER_ID_QUALIFIER CHAR(2),'
+      '    @LOCATION_CODE CHAR(3),'
+      '    @NPI VARCHAR(15),'
+      '    @ESTADO NCHAR(2),'
+      '    @CODIGO_POSTAL NCHAR(15),'
+      '    @DIRECCION2 NCHAR(20),'
+      '    @EMAIL NCHAR(80),'
+      '    @CELULAR NCHAR(13),'
+      '    @CITY NCHAR(20),'
+      '    @SUFFIX_NAME NCHAR(10),'
+      '    @PREFIX_NAME NCHAR(10),'
+      '    @MIDDLENAME NCHAR(35),'
+      '    @PHONEALT1 NCHAR(25),'
+      '    @PHONEALT2 NCHAR(25),'
+      '    @PHONEALT3 NCHAR(25),'
+      '    @PHONEALT4 NCHAR(25),'
+      '    @PHONEALT5 NCHAR(25),'
+      '    @SPI NCHAR(13),'
+      '    @MEDICARE_NUMBER NCHAR(35),'
+      '    @MEDICAID_NUMBER NCHAR(35),'
+      '    @PPO_NUMBER NCHAR(35),'
+      '    @DENTIS_LICENSE_NO NCHAR(35),'
+      '    @UPIN NCHAR(35),'
+      '    @WP_EXTENSION NCHAR(5),'
+      '    @CLINIC_NAME NCHAR(35),'
+      '    @SERVICE_LEVEL VARCHAR(MAX),'
+      '    @ACTIVE_START_TIME DATETIME,'
+      '    @ACTIVE_END_TIME DATETIME,'
+      '    @NUMERODOCTOR_OUTPUT INT OUTPUT'
+      'AS'
+      'BEGIN'
+      '    SET NOCOUNT ON;'
+      '    SET XACT_ABORT ON;'
+      ''
+      '    BEGIN TRY'
+      '        BEGIN TRANSACTION;'
+      ''
+      '        IF ISNULL(@NUMERODOCTOR, 0) = 0'
+      '        BEGIN'
+      '            INSERT INTO dbo.DOCTOR'
+      '            ('
+      '                APELLIDO_MATERNO,'
+      '                APELLIDO_PATERNO,'
+      '                NOMBRE,'
+      '                DIRECCION,'
+      '                INFOADICIONAL,'
+      '                TELEFONO,'
+      '                ESPECIALIDAD,'
+      '                FAX,'
+      '                DESCA,'
+      '                DEA_FEDERAL,'
+      '                LICENCIA,'
+      '                PRESCRIBER_ID_QUALIFIER,'
+      '                LOCATION_CODE,'
+      '                NPI,'
+      '                ESTADO,'
+      '                CODIGO_POSTAL,'
+      '                DIRECCION2,'
+      '                EMAIL,'
+      '                CELULAR,'
+      '                CITY,'
+      '                SUFFIX_NAME,'
+      '                PREFIX_NAME,'
+      '                MIDDLENAME,'
+      '                PHONEALT1,'
+      '                PHONEALT2,'
+      '                PHONEALT3,'
+      '                PHONEALT4,'
+      '                PHONEALT5,'
+      '                SPI,'
+      '                MEDICARE_NUMBER,'
+      '                MEDICAID_NUMBER,'
+      '                PPO_NUMBER,'
+      '                DENTIS_LICENSE_NO,'
+      '                UPIN,'
+      '                WP_EXTENSION,'
+      '                ClinicName,'
+      '                ServiceLevel,'
+      '                ActiveStartTime61,'
+      '                ActiveEndTime61,'
+      '                HOME_PHONE'
+      '            )'
+      '            VALUES'
+      '            ('
+      '                @APELLIDO_MATERNO,'
+      '                @APELLIDO_PATERNO,'
+      '                @NOMBRE,'
+      '                @DIRECCION,'
+      '                @INFOADICIONAL,'
+      '                @TELEFONO,'
+      '                @ESPECIALIDAD,'
+      '                @FAX,'
+      '                @DESCA,'
+      '                @DEA_FEDERAL,'
+      '                @LICENCIA,'
+      '                @PRESCRIBER_ID_QUALIFIER,'
+      '                @LOCATION_CODE,'
+      '                @NPI,'
+      '                @ESTADO,'
+      '                @CODIGO_POSTAL,'
+      '                @DIRECCION2,'
+      '                @EMAIL,'
+      '                @CELULAR,'
+      '                @CITY,'
+      '                @SUFFIX_NAME,'
+      '                @PREFIX_NAME,'
+      '                @MIDDLENAME,'
+      '                @PHONEALT1,'
+      '                @PHONEALT2,'
+      '                @PHONEALT3,'
+      '                @PHONEALT4,'
+      '                @PHONEALT5,'
+      '                @SPI,'
+      '                @MEDICARE_NUMBER,'
+      '                @MEDICAID_NUMBER,'
+      '                @PPO_NUMBER,'
+      '                @DENTIS_LICENSE_NO,'
+      '                @UPIN,'
+      '                @WP_EXTENSION,'
+      '                @CLINIC_NAME,'
+      '                @SERVICE_LEVEL,'
+      '                @ACTIVE_START_TIME,'
+      '                @ACTIVE_END_TIME,'
+      '                @HOME_PHONE'
+      '            );'
+      ''
+      '            SET @NUMERODOCTOR_OUTPUT = SCOPE_IDENTITY();'
+      '        END'
+      '        ELSE'
+      '        BEGIN'
+      '            UPDATE dbo.DOCTOR'
+      '               SET APELLIDO_MATERNO = @APELLIDO_MATERNO,'
+      '                   APELLIDO_PATERNO = @APELLIDO_PATERNO,'
+      '                   NOMBRE = @NOMBRE,'
+      '                   DIRECCION = @DIRECCION,'
+      '                   INFOADICIONAL = @INFOADICIONAL,'
+      '                   TELEFONO = @TELEFONO,'
+      '                   ESPECIALIDAD = @ESPECIALIDAD,'
+      '                   FAX = @FAX,'
+      '                   DESCA = @DESCA,'
+      '                   DEA_FEDERAL = @DEA_FEDERAL,'
+      '                   LICENCIA = @LICENCIA,'
       
-        #9#9'INSERT INTO [dbo].[DOCTOR] ([APELLIDO_MATERNO], [APELLIDO_PATE' +
-        'RNO], [NOMBRE], [DIRECCION], [INFOADICIONAL], [TELEFONO],'
+        '                   PRESCRIBER_ID_QUALIFIER = @PRESCRIBER_ID_QUAL' +
+        'IFIER,'
+      '                   LOCATION_CODE = @LOCATION_CODE,'
+      '                   NPI = @NPI,'
+      '                   ESTADO = @ESTADO,'
+      '                   CODIGO_POSTAL = @CODIGO_POSTAL,'
+      '                   DIRECCION2 = @DIRECCION2,'
+      '                   EMAIL = @EMAIL,'
+      '                   CELULAR = @CELULAR,'
+      '                   CITY = @CITY,'
+      '                   SUFFIX_NAME = @SUFFIX_NAME,'
+      '                   PREFIX_NAME = @PREFIX_NAME,'
+      '                   MIDDLENAME = @MIDDLENAME,'
+      '                   PHONEALT1 = @PHONEALT1,'
+      '                   PHONEALT2 = @PHONEALT2,'
+      '                   PHONEALT3 = @PHONEALT3,'
+      '                   PHONEALT4 = @PHONEALT4,'
+      '                   PHONEALT5 = @PHONEALT5,'
+      '                   SPI = @SPI,'
+      '                   MEDICARE_NUMBER = @MEDICARE_NUMBER,'
+      '                   MEDICAID_NUMBER = @MEDICAID_NUMBER,'
+      '                   PPO_NUMBER = @PPO_NUMBER,'
+      '                   DENTIS_LICENSE_NO = @DENTIS_LICENSE_NO,'
+      '                   UPIN = @UPIN,'
+      '                   WP_EXTENSION = @WP_EXTENSION,'
+      '                   ClinicName = @CLINIC_NAME,'
+      '                   ServiceLevel = @SERVICE_LEVEL,'
+      '                   ActiveStartTime61 = @ACTIVE_START_TIME,'
+      '                   ActiveEndTime61 = @ACTIVE_END_TIME,'
+      '                   HOME_PHONE = @HOME_PHONE'
+      '             WHERE NUMERODOCTOR = @NUMERODOCTOR;'
+      ''
+      '            IF @@ROWCOUNT = 0'
       
-        #9#9'[ESPECIALIDAD], [FAX], [DESCA], [DEA_FEDERAL], [LICENCIA], [PR' +
-        'ESCRIBER_ID_QUALIFIER], [LOCATION_CODE],'
-      
-        #9#9'[NPI], [ESTADO], [CODIGO_POSTAL], [DIRECCION2], [email], [CELU' +
-        'LAR], [CITY], [SUFFIX_NAME],'
-      
-        #9#9'[PREFIX_NAME], [MIDDLENAME], [PHONEALT1], [PHONEALT2], [PHONEA' +
-        'LT3], [PHONEALT4],'
-      
-        #9#9'[PHONEALT5], [SPI], [MEDICARE_NUMBER], [MEDICAID_NUMBER], [PPO' +
-        '_NUMBER], [DENTIS_LICENSE_NO],'
-      
-        #9#9'[UPIN], [WP_EXTENSION], [ClinicName], [ServiceLevel], [ActiveS' +
-        'tartTime61], [ActiveEndTime61], [HOME_PHONE])'
-      #9#9'VALUES'
-      
-        #9#9'(@APELLIDO_MATERNO, @APELLIDO_PATERNO, @NOMBRE, @DIRECCION, @I' +
-        'NFOADICIONAL, @TELEFONO, @ESPECIALIDAD, '
-      
-        #9#9'@FAX, @DESCA, @DEA_FEDERAL, @LICENCIA, @PRESCRIBER_ID_QUALIFIE' +
-        'R, @LOCATION_CODE, @NPI, @ESTADO, @CODIGO_POSTAL, '
-      
-        #9#9'@DIRECCION2, @email, @CELULAR, @CITY, @SUFFIX_NAME, @PREFIX_NA' +
-        'ME, '
-      
-        #9#9'@MIDDLENAME, @PHONEALT1, @PHONEALT2, @PHONEALT3, @PHONEALT4, @' +
-        'PHONEALT5,'
-      #9#9'@SPI, @MEDICARE_NUMBER,@MEDICAID_NUMBER, @PPO_NUMBER,'
-      #9#9'@DENTIS_LICENSE_NO, @UPIN, @WP_EXTENSION, @Clinic_Name, '
-      
-        #9#9'@SERVICE_LEVEL, @Active_Start_Time, @ACTIVE_END_TIME, @HOME_PH' +
-        'ONE);'
-      #9#9'SET @NUMERODOCTOR_OUTPUT=SCOPE_IDENTITY();'
-      #9'end'
-      #9'ELSE'
-      #9'begin'
-      #9#9'UPDATE [dbo].[DOCTOR]'
-      #9#9'SET [APELLIDO_MATERNO] = @APELLIDO_MATERNO'
-      
-        #9#9',[APELLIDO_PATERNO] = @APELLIDO_PATERNO, [NOMBRE] = @NOMBRE, [' +
-        'DIRECCION] = @DIRECCION'
-      
-        #9#9',[INFOADICIONAL] = @INFOADICIONAL, [TELEFONO] = @TELEFONO, [ES' +
-        'PECIALIDAD] = @ESPECIALIDAD'
-      
-        #9#9',[FAX] = @FAX, [DESCA] = @DESCA, [DEA_FEDERAL] = @DEA_FEDERAL,' +
-        ' [LICENCIA] = @LICENCIA, [PRESCRIBER_ID_QUALIFIER] = @PRESCRIBER' +
-        '_ID_QUALIFIER'
-      
-        #9#9',[LOCATION_CODE] = @LOCATION_CODE, [NPI] = @NPI, [ESTADO] = @E' +
-        'STADO, [CODIGO_POSTAL] = @CODIGO_POSTAL'
-      
-        #9#9',[DIRECCION2] = @DIRECCION2, [email] = @EMAIL, [CELULAR] = @CE' +
-        'LULAR, [CITY] = @CITY'
-      
-        #9#9',[SUFFIX_NAME] = @SUFFIX_NAME, [PREFIX_NAME] = @PREFIX_NAME, [' +
-        'MIDDLENAME] = @MIDDLENAME'
-      
-        #9#9',[PHONEALT1] = @PHONEALT1, [PHONEALT2] = @PHONEALT2, [PHONEALT' +
-        '3] = @PHONEALT3, [PHONEALT4] = @PHONEALT4'
-      
-        #9#9',[PHONEALT5] = @PHONEALT5, [SPI] = @SPI, [MEDICARE_NUMBER] = @' +
-        'MEDICARE_NUMBER, [MEDICAID_NUMBER] = @MEDICAID_NUMBER'
-      
-        #9#9',[PPO_NUMBER] = @PPO_NUMBER, [DENTIS_LICENSE_NO] = @DENTIS_LIC' +
-        'ENSE_NO, [UPIN] = @UPIN, [WP_EXTENSION] = @WP_EXTENSION, [Clinic' +
-        'Name] = @Clinic_Name'
-      
-        #9#9',[ServiceLevel] = @Service_Level, [ActiveStartTime61] = @Activ' +
-        'e_Start_Time, [ActiveEndTime61] = @Active_End_Time'
-      #9#9',[HOME_PHONE] = @HOME_PHONE'
-      #9#9'where NUMERODOCTOR = @NumeroDoctor;'
-      #9#9'select @NUMERODOCTOR_OUTPUT = @NUMERODOCTOR;'
-      #9'end'
-      #9'COMMIT;'
-      'end;')
+        '                THROW 50001, '#39'Prescriber not found for update.'#39',' +
+        ' 1;'
+      ''
+      '            SET @NUMERODOCTOR_OUTPUT = @NUMERODOCTOR;'
+      '        END'
+      ''
+      '        COMMIT;'
+      '    END TRY'
+      '    BEGIN CATCH'
+      '        IF @@TRANCOUNT > 0'
+      '            ROLLBACK;'
+      ''
+      '        THROW;'
+      '    END CATCH'
+      'END;'
+      '')
     Left = 3760
     Top = 408
   end
@@ -14163,267 +14521,307 @@ object DMModifyDatabase: TDMModifyDatabase
     Connection = FDConnection1
     SQL.Strings = (
       'CREATE PROCEDURE [dbo].[ADD_EDIT_PACIENTES]'
-      '@NOMBRE CHAR(12),'
-      '@FECHANACIMIENTO DATE, '
-      '@SEXO INT, '
-      '@DIRECCION1 CHAR(30),'
-      '@ULTTRANS DATETIME,'
-      '@DEUDA REAL,'
-      '@NUMEROCLIENTE INT,'
-      '@INTERES CHAR(1),'
-      '@DIRECCIONFISICA CHAR(50),'
-      '@APELLIDOPATERNO CHAR(15),'
-      '@APELLIDOMATERNO CHAR(15),'
-      '@TELEFONO CHAR(13),'
-      '@FAX CHAR(13),'
-      '@CELULAR CHAR(13),'
-      '@LAYAWAY REAL,'
-      '@ESTADO CHAR(2),'
-      '@AUSPICIO REAL,'
-      '@SOCIO VARCHAR(12),'
-      '@ORIENTACION CHAR(5),'
-      '@IDENTIFICACION CHAR (20),'
-      '@SMOKER CHAR(1),'
-      '@LOCATION CHAR(2),'
-      '@EMPLOYER_ID CHAR(15),'
-      '@PATIENT_ID_QUAL CHAR(2),'
-      '@PREGNANCY_IDICATOR CHAR(1),'
-      '@FECHA_HIPPA DATETIME, '
-      '@DEUDA_WEB REAL,'
-      '@LANGUAGE CHAR(12),'
-      '@INFOADICIONAL VARCHAR (100),'
-      '@CONSULTA VARCHAR(100),'
-      '@CIUDAD CHAR(20),'
-      '@ACCIONES FLOAT, '
-      '@DEUDA_EXTENDIDA VARCHAR(1), '
-      '@MAILING_ADDRESS1 VARCHAR(30),'
-      '@MAILING_ADDRESS2 VARCHAR(30), '
-      '@MAILING_CITY VARCHAR(15),'
-      '@MAILING_STATE VARCHAR(2),'
-      '@MAILING_ZIPCODE VARCHAR (12),'
-      '@PATIENT_RESIDENCE NCHAR(2),'
-      '@PLACE_OF_SERVICE NCHAR(2),'
-      '@EMAIL NCHAR(80),'
-      '@CARDHOLDERID NCHAR(20), '
-      '@CODIGOPOSTAL NCHAR(15),'
-      '@DIRECCION2 NCHAR(40), '
-      '@SIGNATURE TEXT, '
-      '@OUT_DIAL_PERMISSION NCHAR(1),'
-      '@SSN NCHAR(9),'
-      '@NOTIFICATION_MODE_PHONE SMALLINT,'
-      '@NOTIFICATION_MODE_CEL SMALLINT, '
-      '@NOTIFICATION_MODE_SMS SMALLINT, '
-      '@NOTIFICATION_MODE_EMAIL SMALLINT, '
-      '@NIGHT_PHONE NCHAR(13),'
-      '@NOTIFICATION_MODE NCHAR(1),'
-      '@PRIMARY_TELEPHONE NCHAR(7),'
-      '@WC_NO_NOTIFICATION BIT,'
-      '@FACILITY_ID INT, '
-      '@FACILITY_ADMISSION_DATE DATE, '
-      '@FACILITY_ROOM NCHAR(10),'
-      '@FACILITY_PRESCRIBER NCHAR(50), '
-      '@OVERRIDE_SYSTEM_DEFAULT_PRICE BIT, '
-      '@PRICE_TABLE_ID INT, '
-      '@ADHERENCE BIT, '
-      '@ALLERGY BIT, '
-      '@DECEASED BIT, '
-      '@MIDDLE_NAME VARCHAR(12),'
-      '@NUMEROCLIENTE_OUTPUT INT OUTPUT,'
-      '@DELIVERY BIT,'
-      '@AUTOMATIC_REFILL bit,'
-      '@CODE CHAR(1),'
-      '@USER NCHAR(3),'
-      '@NOTE NCHAR(30),'
-      '@LANGUAGE_CODE NCHAR(5),'
-      '@LTC bit,'
-      '@ACTIVE BIT,'
-      '@REASON_FOR_INACTIVATION NCHAR(30),'
-      '@CHANGE_RX_STATUS BIT,'
-      '@WEIGHT DECIMAL(5,2),'
-      '@HEIGHT DECIMAL(4,2),'
-      '@DELIVERY_NOTE NCHAR(1000)'
+      '    @NOMBRE CHAR(12),'
+      '    @FECHANACIMIENTO DATETIME,'
+      '    @SEXO INT,'
+      '    @DIRECCION1 CHAR(30),'
+      '    @ULTTRANS DATETIME,'
+      '    @DEUDA REAL,'
+      '    @NUMEROCLIENTE INT,'
+      '    @INTERES CHAR(1),'
+      '    @DIRECCIONFISICA CHAR(50),'
+      '    @APELLIDOPATERNO CHAR(15),'
+      '    @APELLIDOMATERNO CHAR(15),'
+      '    @TELEFONO CHAR(13),'
+      '    @FAX CHAR(13),'
+      '    @CELULAR CHAR(13),'
+      '    @LAYAWAY REAL,'
+      '    @ESTADO CHAR(2),'
+      '    @AUSPICIO REAL,'
+      '    @SOCIO VARCHAR(12),'
+      '    @ORIENTACION CHAR(5),'
+      '    @IDENTIFICACION CHAR(20),'
+      '    @SMOKER CHAR(1),'
+      '    @LOCATION CHAR(2),'
+      '    @EMPLOYER_ID CHAR(15),'
+      '    @PATIENT_ID_QUAL CHAR(2),'
+      '    @PREGNANCY_IDICATOR CHAR(1),'
+      '    @FECHA_HIPPA DATETIME,'
+      '    @DEUDA_WEB REAL,'
+      '    @LANGUAGE CHAR(12),'
+      '    @INFOADICIONAL VARCHAR(100),'
+      '    @CONSULTA VARCHAR(100),'
+      '    @CIUDAD CHAR(20),'
+      '    @ACCIONES FLOAT,'
+      '    @DEUDA_EXTENDIDA VARCHAR(1),'
+      '    @MAILING_ADDRESS1 VARCHAR(30),'
+      '    @MAILING_ADDRESS2 VARCHAR(30),'
+      '    @MAILING_CITY VARCHAR(15),'
+      '    @MAILING_STATE VARCHAR(2),'
+      '    @MAILING_ZIPCODE VARCHAR(12),'
+      '    @PATIENT_RESIDENCE NCHAR(2),'
+      '    @PLACE_OF_SERVICE NCHAR(2),'
+      '    @EMAIL NCHAR(80),'
+      '    @CARDHOLDERID NCHAR(20),'
+      '    @CODIGOPOSTAL NCHAR(15),'
+      '    @DIRECCION2 NCHAR(40),'
+      '    @SIGNATURE VARCHAR(MAX),'
+      '    @OUT_DIAL_PERMISSION NCHAR(1),'
+      '    @SSN NCHAR(9),'
+      '    @NOTIFICATION_MODE_PHONE SMALLINT,'
+      '    @NOTIFICATION_MODE_CEL SMALLINT,'
+      '    @NOTIFICATION_MODE_SMS SMALLINT,'
+      '    @NOTIFICATION_MODE_EMAIL SMALLINT,'
+      '    @NIGHT_PHONE NCHAR(13),'
+      '    @NOTIFICATION_MODE NCHAR(1),'
+      '    @PRIMARY_TELEPHONE NCHAR(7),'
+      '    @WC_NO_NOTIFICATION BIT,'
+      '    @FACILITY_ID INT,'
+      '    @FACILITY_ADMISSION_DATE DATE,'
+      '    @FACILITY_ROOM NCHAR(10),'
+      '    @FACILITY_PRESCRIBER NCHAR(50),'
+      '    @OVERRIDE_SYSTEM_DEFAULT_PRICE BIT,'
+      '    @PRICE_TABLE_ID INT,'
+      '    @ADHERENCE BIT,'
+      '    @ALLERGY BIT,'
+      '    @DECEASED BIT,'
+      '    @MIDDLE_NAME VARCHAR(12),'
+      '    @NUMEROCLIENTE_OUTPUT INT OUTPUT,'
+      '    @DELIVERY BIT,'
+      '    @AUTOMATIC_REFILL BIT,'
+      '    @USER NCHAR(3),'
+      '    @LANGUAGE_CODE NCHAR(5),'
+      '    @LTC BIT,'
+      '    @ACTIVE BIT,'
+      '    @REASON_FOR_INACTIVATION NCHAR(30),'
+      '    @CHANGE_RX_STATUS BIT,'
+      '    @WEIGHT DECIMAL(5,2),'
+      '    @HEIGHT DECIMAL(4,2),'
+      '    @DELIVERY_NOTE NCHAR(1000)'
       'AS'
-      'DECLARE @NO_PLAN INT'
       'BEGIN'
-      '    BEGIN TRANSACTION'
-      #9#9'SET @ACTIVE = ISNULL(@ACTIVE, 1);'
-      #9#9'IF @NUMEROCLIENTE = 0 '
-      #9#9#9'BEGIN '
+      '    SET NOCOUNT ON;'
+      '    SET XACT_ABORT ON;'
+      ''
+      '    DECLARE @CODE CHAR(1);'
+      '    DECLARE @NOTE NCHAR(30);'
+      ''
+      '    BEGIN TRY'
+      '        BEGIN TRANSACTION;'
+      ''
+      '        IF ISNULL(@NUMEROCLIENTE, 0) = 0'
+      '        BEGIN'
+      '            INSERT INTO [dbo].[PACIENTES]'
+      '            ('
       
-        #9#9#9#9'INSERT INTO [DBO].[PACIENTES](NOMBRE, FECHANACIMIENTO, SEXO,' +
-        ' DIRECCION1, ULTTRANS, DEUDA, '
-      #9#9#9#9'INTERES, DIRECCIONFISICA, APELLIDOPATERNO,'
-      #9#9#9#9'APELLIDOMATERNO, TELEFONO, FAX, CELULAR, LAWAY,'
-      #9#9#9#9'ESTADO, AUSPICIO, SOCIO, ORIENTACION, IDENTIFICACION, '
+        '                NOMBRE, FECHANACIMIENTO, SEXO, DIRECCION1, ULTTR' +
+        'ANS, DEUDA,'
       
-        #9#9#9#9'SMOKER, LOCATION, EMPLOYER_ID, PATIENT_ID_QUAL,PREGNANCY_IDI' +
-        'CATOR,'
-      #9#9#9#9'FECHA_HIPPA, DEUDA_WEB, LANGUAGE, INFOADICIONAL, CONSULTA, '
-      #9#9#9#9'CIUDAD, ACCIONES, DEUDA_EXTENDIDA, MAILING_ADDRESS1,'
+        '                INTERES, DIRECCIONFISICA, APELLIDOPATERNO, APELL' +
+        'IDOMATERNO,'
       
-        #9#9#9#9'MAILING_ADDRESS2, MAILING_CITY, MAILING_STATE, MAILING_ZIPCO' +
-        'DE, '
+        '                TELEFONO, FAX, CELULAR, LAWAY, ESTADO, AUSPICIO,' +
+        ' SOCIO,'
       
-        #9#9#9#9'PATIENT_RESIDENCE, PLACE_OF_SERVICE, EMAIL, CARDHOLDERID, CO' +
-        'DIGOPOSTAL, DIRECCION2, '
+        '                ORIENTACION, IDENTIFICACION, SMOKER, LOCATION, E' +
+        'MPLOYER_ID,'
       
-        #9#9#9#9'SIGNATURE, OUT_DIAL_PERMISSION, SSN, NOTIFICATION_MODE_PHONE' +
-        ', NOTIFICATION_MODE_CEL, '
+        '                PATIENT_ID_QUAL, PREGNANCY_IDICATOR, FECHA_HIPPA' +
+        ', DEUDA_WEB,'
       
-        #9#9#9#9'NOTIFICATION_MODE_SMS, NOTIFICATION_MODE_EMAIL, NIGHT_PHONE,' +
-        ' '
-      #9#9#9#9'NOTIFICATION_MODE, PRIMARY_TELEPHONE, WC_NO_NOTIFICATION, '
+        '                LANGUAGE, INFOADICIONAL, CONSULTA, CIUDAD, ACCIO' +
+        'NES,'
       
-        #9#9#9#9'--FACILITY_ID, FACILITY_ADMISSION_DATE, FACILITY_ROOM, FACIL' +
-        'ITY_PRESCRIBER, '
-      #9#9#9#9'OVERRIDE_SYSTEM_DEFAULT_PRICE, '
-      #9#9#9#9'PRICE_TABLE_ID, ADHERENCE, ALLERGY, DECEASED, MIDDLE_NAME,'
-      #9#9#9#9'DELIVERY, AUTOMATIC_REFILL, LANGUAGE_CODE, LTC, '
+        '                DEUDA_EXTENDIDA, MAILING_ADDRESS1, MAILING_ADDRE' +
+        'SS2,'
+      '                MAILING_CITY, MAILING_STATE, MAILING_ZIPCODE,'
       
-        #9#9#9#9'ACTIVE, REASON_FOR_INACTIVATION, WEIGHT, HEIGHT, DELIVERY_NO' +
-        'TE)'#9#9#9
+        '                PATIENT_RESIDENCE, PLACE_OF_SERVICE, EMAIL, CARD' +
+        'HOLDERID,'
       
-        #9#9#9#9'VALUES(@NOMBRE, @FECHANACIMIENTO, @SEXO, @DIRECCION1, @ULTTR' +
-        'ANS, '
-      #9#9#9#9'@DEUDA,  @INTERES, @DIRECCIONFISICA, @APELLIDOPATERNO, '
+        '                CODIGOPOSTAL, DIRECCION2, SIGNATURE, OUT_DIAL_PE' +
+        'RMISSION, SSN,'
+      '                NOTIFICATION_MODE_PHONE, NOTIFICATION_MODE_CEL,'
       
-        #9#9#9#9'@APELLIDOMATERNO, @TELEFONO, @FAX, @CELULAR, @LAYAWAY, @ESTA' +
-        'DO,'
+        '                NOTIFICATION_MODE_SMS, NOTIFICATION_MODE_EMAIL, ' +
+        'NIGHT_PHONE,'
       
-        #9#9#9#9'@AUSPICIO, @SOCIO, @ORIENTACION, @IDENTIFICACION, @SMOKER, @' +
-        'LOCATION, @EMPLOYER_ID, '
+        '                NOTIFICATION_MODE, PRIMARY_TELEPHONE, WC_NO_NOTI' +
+        'FICATION,'
       
-        #9#9#9#9'@PATIENT_ID_QUAL, @PREGNANCY_IDICATOR, @FECHA_HIPPA, @DEUDA_' +
-        'WEB, @LANGUAGE, '
+        '                OVERRIDE_SYSTEM_DEFAULT_PRICE, PRICE_TABLE_ID, A' +
+        'DHERENCE,'
+      '                ALLERGY, DECEASED, MIDDLE_NAME, DELIVERY,'
+      '                AUTOMATIC_REFILL, LANGUAGE_CODE, LTC, ACTIVE,'
       
-        #9#9#9#9'@INFOADICIONAL, @CONSULTA, @CIUDAD, @ACCIONES, @DEUDA_EXTEND' +
-        'IDA, '
-      #9#9#9'    @MAILING_ADDRESS1, @MAILING_ADDRESS2, @MAILING_CITY, '
+        '                REASON_FOR_INACTIVATION, WEIGHT, HEIGHT, DELIVER' +
+        'Y_NOTE'
+      '            )'
+      '            VALUES'
+      '            ('
       
-        #9#9#9#9'@MAILING_STATE, @MAILING_ZIPCODE, @PATIENT_RESIDENCE, @PLACE' +
-        '_OF_SERVICE, '
+        '                @NOMBRE, @FECHANACIMIENTO, @SEXO, @DIRECCION1, @' +
+        'ULTTRANS, @DEUDA,'
       
-        #9#9#9#9'@EMAIL, @CARDHOLDERID, @CODIGOPOSTAL, @DIRECCION2, @SIGNATUR' +
-        'E, @OUT_DIAL_PERMISSION,'
+        '                @INTERES, @DIRECCIONFISICA, @APELLIDOPATERNO, @A' +
+        'PELLIDOMATERNO,'
       
-        #9#9#9#9'@SSN, @NOTIFICATION_MODE_PHONE, @NOTIFICATION_MODE_CEL, @NOT' +
-        'IFICATION_MODE_SMS, '
-      #9#9#9#9'@NOTIFICATION_MODE_EMAIL, @NIGHT_PHONE, @NOTIFICATION_MODE, '
-      #9#9#9#9'@PRIMARY_TELEPHONE, @WC_NO_NOTIFICATION, '
+        '                @TELEFONO, @FAX, @CELULAR, @LAYAWAY, @ESTADO, @A' +
+        'USPICIO, @SOCIO,'
       
-        #9#9#9#9'--@FACILITY_ID, @FACILITY_ADMISSION_DATE, @FACILITY_ROOM, @F' +
-        'ACILITY_PRESCRIBER, '
-      #9#9#9#9'@OVERRIDE_SYSTEM_DEFAULT_PRICE,'
-      #9#9#9#9'@PRICE_TABLE_ID, @ADHERENCE, @ALLERGY,'
+        '                @ORIENTACION, @IDENTIFICACION, @SMOKER, @LOCATIO' +
+        'N, @EMPLOYER_ID,'
       
-        #9#9#9#9'@DECEASED, @MIDDLE_NAME, @DELIVERY, @AUTOMATIC_REFILL, @LANG' +
-        'UAGE_CODE, @LTC, '
+        '                @PATIENT_ID_QUAL, @PREGNANCY_IDICATOR, @FECHA_HI' +
+        'PPA, @DEUDA_WEB,'
       
-        #9#9#9#9'@ACTIVE, @REASON_FOR_INACTIVATION, @WEIGHT, @HEIGHT, @DELIVE' +
-        'RY_NOTE);'
-      #9#9#9#9'SET @NUMEROCLIENTE_OUTPUT=SCOPE_IDENTITY();'
-      #9#9#9#9'SET @CODE = '#39'A'#39';'
-      #9#9#9#9'SET @NOTE = '#39'NEW CUSTOMER ADDED'#39';'
-      #9#9#9'END'
-      #9#9'ELSE'
-      #9#9#9'BEGIN'
-      #9#9#9#9'UPDATE [dbo].[PACIENTES]'
-      #9#9#9#9'   SET [NOMBRE] = @NOMBRE'
+        '                @LANGUAGE, @INFOADICIONAL, @CONSULTA, @CIUDAD, @' +
+        'ACCIONES,'
       
-        #9#9#9#9#9'  ,[FECHANACIMIENTO] = @FECHANACIMIENTO, [SEXO] = @SEXO, [D' +
-        'IRECCION1] = @DIRECCION1, '
-      #9#9#9#9#9'   [ULTTRANS] = @ULTTRANS'
+        '                @DEUDA_EXTENDIDA, @MAILING_ADDRESS1, @MAILING_AD' +
+        'DRESS2,'
+      '                @MAILING_CITY, @MAILING_STATE, @MAILING_ZIPCODE,'
       
-        #9#9#9#9#9'  ,[INTERES] = @INTERES, [DIRECCIONFISICA] = @DIRECCIONFISI' +
-        'CA, [APELLIDOPATERNO] = @APELLIDOPATERNO'
+        '                @PATIENT_RESIDENCE, @PLACE_OF_SERVICE, @EMAIL, @' +
+        'CARDHOLDERID,'
       
-        #9#9#9#9#9'  ,[APELLIDOMATERNO] = @APELLIDOMATERNO, [TELEFONO] = @TELE' +
-        'FONO, [FAX] = @FAX, [CELULAR] = @CELULAR'
-      #9#9#9#9#9'  ,[ESTADO] = @ESTADO,  [SOCIO] = @SOCIO'
+        '                @CODIGOPOSTAL, @DIRECCION2, @SIGNATURE, @OUT_DIA' +
+        'L_PERMISSION, @SSN,'
       
-        #9#9#9#9#9'  ,[ORIENTACION] = @ORIENTACION, [IDENTIFICACION] = @IDENTI' +
-        'FICACION, [SMOKER] = @SMOKER'
+        '                @NOTIFICATION_MODE_PHONE, @NOTIFICATION_MODE_CEL' +
+        ','
       
-        #9#9#9#9#9'  ,[LOCATION] = @LOCATION, [EMPLOYER_ID] = @EMPLOYER_ID, [P' +
-        'ATIENT_ID_QUAL] = @PATIENT_ID_QUAL'
+        '                @NOTIFICATION_MODE_SMS, @NOTIFICATION_MODE_EMAIL' +
+        ', @NIGHT_PHONE,'
       
-        #9#9#9#9#9'  ,[PREGNANCY_IDICATOR] = @PREGNANCY_IDICATOR, [FECHA_HIPPA' +
-        '] = @FECHA_HIPPA '
+        '                @NOTIFICATION_MODE, @PRIMARY_TELEPHONE, @WC_NO_N' +
+        'OTIFICATION,'
       
-        #9#9#9#9#9'  ,[LANGUAGE] = @LANGUAGE, [INFOADICIONAL] = @INFOADICIONAL' +
-        ', [CONSULTA] = @CONSULTA'
-      #9#9#9#9#9'  ,[CIUDAD] = @CIUDAD, [ACCIONES] = @ACCIONES'
+        '                @OVERRIDE_SYSTEM_DEFAULT_PRICE, @PRICE_TABLE_ID,' +
+        ' @ADHERENCE,'
+      '                @ALLERGY, @DECEASED, @MIDDLE_NAME, @DELIVERY,'
       
-        #9#9#9#9#9'  ,[MAILING_ADDRESS1] = @MAILING_ADDRESS1, [MAILING_ADDRESS' +
-        '2] = @MAILING_ADDRESS2'
+        '                @AUTOMATIC_REFILL, @LANGUAGE_CODE, @LTC, @ACTIVE' +
+        ','
       
-        #9#9#9#9#9'  ,[MAILING_CITY] = @MAILING_CITY, [MAILING_STATE] = @MAILI' +
-        'NG_STATE, [MAILING_ZIPCODE] = @MAILING_ZIPCODE'
+        '                @REASON_FOR_INACTIVATION, @WEIGHT, @HEIGHT, @DEL' +
+        'IVERY_NOTE'
+      '            );'
+      ''
+      '            SET @NUMEROCLIENTE_OUTPUT = SCOPE_IDENTITY();'
+      '            SET @CODE = '#39'A'#39';'
+      '            SET @NOTE = '#39'NEW CUSTOMER ADDED'#39';'
+      '        END'
+      '        ELSE'
+      '        BEGIN'
+      '            UPDATE dbo.PACIENTES'
+      '               SET NOMBRE = @NOMBRE,'
+      '                   FECHANACIMIENTO = @FECHANACIMIENTO,'
+      '                   SEXO = @SEXO,'
+      '                   DIRECCION1 = @DIRECCION1,'
+      '                   ULTTRANS = @ULTTRANS,'
+      '                   INTERES = @INTERES,'
+      '                   DIRECCIONFISICA = @DIRECCIONFISICA,'
+      '                   APELLIDOPATERNO = @APELLIDOPATERNO,'
+      '                   APELLIDOMATERNO = @APELLIDOMATERNO,'
+      '                   TELEFONO = @TELEFONO,'
+      '                   FAX = @FAX,'
+      '                   CELULAR = @CELULAR,'
+      '                   ESTADO = @ESTADO,'
+      '                   SOCIO = @SOCIO,'
+      '                   ORIENTACION = @ORIENTACION,'
+      '                   IDENTIFICACION = @IDENTIFICACION,'
+      '                   SMOKER = @SMOKER,'
+      '                   LOCATION = @LOCATION,'
+      '                   EMPLOYER_ID = @EMPLOYER_ID,'
+      '                   PATIENT_ID_QUAL = @PATIENT_ID_QUAL,'
+      '                   PREGNANCY_IDICATOR = @PREGNANCY_IDICATOR,'
+      '                   FECHA_HIPPA = @FECHA_HIPPA,'
+      '                   LANGUAGE = @LANGUAGE,'
+      '                   INFOADICIONAL = @INFOADICIONAL,'
+      '                   CONSULTA = @CONSULTA,'
+      '                   CIUDAD = @CIUDAD,'
+      '                   ACCIONES = @ACCIONES,'
+      '                   MAILING_ADDRESS1 = @MAILING_ADDRESS1,'
+      '                   MAILING_ADDRESS2 = @MAILING_ADDRESS2,'
+      '                   MAILING_CITY = @MAILING_CITY,'
+      '                   MAILING_STATE = @MAILING_STATE,'
+      '                   MAILING_ZIPCODE = @MAILING_ZIPCODE,'
+      '                   PATIENT_RESIDENCE = @PATIENT_RESIDENCE,'
+      '                   PLACE_OF_SERVICE = @PLACE_OF_SERVICE,'
+      '                   EMAIL = @EMAIL,'
+      '                   CARDHOLDERID = @CARDHOLDERID,'
+      '                   CODIGOPOSTAL = @CODIGOPOSTAL,'
+      '                   DIRECCION2 = @DIRECCION2,'
+      '                   SIGNATURE = @SIGNATURE,'
+      '                   OUT_DIAL_PERMISSION = @OUT_DIAL_PERMISSION,'
+      '                   SSN = @SSN,'
       
-        #9#9#9#9#9'  ,[PATIENT_RESIDENCE] = @PATIENT_RESIDENCE, [PLACE_OF_SERV' +
-        'ICE] = @PLACE_OF_SERVICE'
+        '                   NOTIFICATION_MODE_PHONE = @NOTIFICATION_MODE_' +
+        'PHONE,'
       
-        #9#9#9#9#9'  ,[EMAIL] = @EMAIL, [CARDHOLDERID] = @CARDHOLDERID, [CODIG' +
-        'OPOSTAL] = @CODIGOPOSTAL'
+        '                   NOTIFICATION_MODE_CEL = @NOTIFICATION_MODE_CE' +
+        'L,'
       
-        #9#9#9#9#9'  ,[DIRECCION2] = @DIRECCION2, [SIGNATURE] = @SIGNATURE, [O' +
-        'UT_DIAL_PERMISSION] = @OUT_DIAL_PERMISSION'
+        '                   NOTIFICATION_MODE_SMS = @NOTIFICATION_MODE_SM' +
+        'S,'
       
-        #9#9#9#9#9'  ,[SSN] = @SSN, [NOTIFICATION_MODE_PHONE] = @NOTIFICATION_' +
-        'MODE_PHONE, [NOTIFICATION_MODE_CEL] = @NOTIFICATION_MODE_CEL'
+        '                   NOTIFICATION_MODE_EMAIL = @NOTIFICATION_MODE_' +
+        'EMAIL,'
+      '                   NIGHT_PHONE = @NIGHT_PHONE,'
+      '                   NOTIFICATION_MODE = @NOTIFICATION_MODE,'
+      '                   PRIMARY_TELEPHONE = @PRIMARY_TELEPHONE,'
+      '                   WC_NO_NOTIFICATION = @WC_NO_NOTIFICATION,'
       
-        #9#9#9#9#9'  ,[NOTIFICATION_MODE_SMS] = @NOTIFICATION_MODE_SMS, [NOTIF' +
-        'ICATION_MODE_EMAIL] = @NOTIFICATION_MODE_EMAIL'
+        '                   OVERRIDE_SYSTEM_DEFAULT_PRICE = @OVERRIDE_SYS' +
+        'TEM_DEFAULT_PRICE,'
+      '                   PRICE_TABLE_ID = @PRICE_TABLE_ID,'
+      '                   ADHERENCE = @ADHERENCE,'
+      '                   ALLERGY = @ALLERGY,'
+      '                   DECEASED = @DECEASED,'
+      '                   MIDDLE_NAME = @MIDDLE_NAME,'
+      '                   DELIVERY = @DELIVERY,'
+      '                   AUTOMATIC_REFILL = @AUTOMATIC_REFILL,'
+      '                   LANGUAGE_CODE = @LANGUAGE_CODE,'
+      '                   LTC = @LTC,'
+      '                   ACTIVE = @ACTIVE,'
       
-        #9#9#9#9#9'  ,[NIGHT_PHONE] = @NIGHT_PHONE, [NOTIFICATION_MODE] = @NOT' +
-        'IFICATION_MODE'
-      
-        #9#9#9#9#9'  ,[PRIMARY_TELEPHONE] = @PRIMARY_TELEPHONE, [WC_NO_NOTIFIC' +
-        'ATION] = @WC_NO_NOTIFICATION'
-      
-        #9#9#9#9#9'  ,[OVERRIDE_SYSTEM_DEFAULT_PRICE] = @OVERRIDE_SYSTEM_DEFAU' +
-        'LT_PRICE, [PRICE_TABLE_ID] = @PRICE_TABLE_ID'
-      #9#9#9#9#9'  ,[ADHERENCE] = @ADHERENCE'
-      
-        #9#9#9#9#9'  ,[ALLERGY] = @ALLERGY, [DECEASED] = @DECEASED, [MIDDLE_NA' +
-        'ME] = @MIDDLE_NAME'
-      
-        #9#9#9#9#9'  ,[DELIVERY] = @DELIVERY, [AUTOMATIC_REFILL] = @AUTOMATIC_' +
-        'REFILL'
-      #9#9#9#9#9'  ,[LANGUAGE_CODE] = @LANGUAGE_CODE, [LTC] = @LTC '
-      
-        #9#9#9#9#9'  ,[ACTIVE] = @ACTIVE, [REASON_FOR_INACTIVATION] = @REASON_' +
-        'FOR_INACTIVATION'
-      
-        #9#9#9#9#9'  ,[HEIGHT] = @HEIGHT, [WEIGHT] = @WEIGHT, DELIVERY_NOTE = ' +
-        '@DELIVERY_NOTE'
-      #9#9#9#9' WHERE NUMEROCLIENTE = @NUMEROCLIENTE;'
-      #9#9#9#9' SELECT @NUMEROCLIENTE_OUTPUT = @NUMEROCLIENTE;'
-      
-        #9#9#9#9' if (@DECEASED = 1) --or (@ACTIVE = 0)) AND (@CHANGE_RX_STAT' +
-        'US = 1) '
-      #9#9#9#9' begin'
-      
-        #9#9#9#9'   Update PRESCRIPTIONS set ACTIVE = 0 where NUMEROCLIENTE =' +
-        ' @NUMEROCLIENTE and ACTIVE = 1;'
-      #9#9#9#9' end'
-      #9#9#9#9' else'
-      
-        #9#9#9#9' if (@DECEASED = 0) --or (@ACTIVE = 1)) --AND (@CHANGE_RX_ST' +
-        'ATUS = 1) '
-      #9#9#9#9' begin'
-      
-        #9#9#9#9'   Update PRESCRIPTIONS set ACTIVE = 1 where NUMEROCLIENTE =' +
-        ' @NUMEROCLIENTE and ACTIVE = 0;'
-      #9#9#9#9' end;'
-      #9#9#9#9' '
-      #9#9#9#9' SET @CODE = '#39'U'#39';'
-      #9#9#9#9' SET @NOTE = '#39'CUSTOMER MODIFIED'#39';'
-      #9#9#9'END;'
-      
-        #9#9#9'EXECUTE INSERT_LOG '#39'CUSTOMER'#39', @CODE, '#39#39', @USER, '#39#39', 0, 0, 0,' +
-        '@NUMEROCLIENTE,0,0,0,0,'#39'R'#39',@NOTE,0,1;'
-      #9#9'  COMMIT;'
+        '                   REASON_FOR_INACTIVATION = @REASON_FOR_INACTIV' +
+        'ATION,'
+      '                   HEIGHT = @HEIGHT,'
+      '                   WEIGHT = @WEIGHT,'
+      '                   DELIVERY_NOTE = @DELIVERY_NOTE'
+      '             WHERE NUMEROCLIENTE = @NUMEROCLIENTE;'
+      ''
+      '            IF @@ROWCOUNT = 0'
+      '                THROW 50001, '#39'Patient not found for update.'#39', 1;'
+      ''
+      '            SET @NUMEROCLIENTE_OUTPUT = @NUMEROCLIENTE;'
+      ''
+      '            IF @CHANGE_RX_STATUS = 1 AND @DECEASED = 1'
+      '            BEGIN'
+      '                UPDATE dbo.PRESCRIPTIONS'
+      '                   SET ACTIVE = 0'
+      '                 WHERE NUMEROCLIENTE = @NUMEROCLIENTE'
+      '                   AND ACTIVE = 1;'
+      '            END'
+      ''
+      '            SET @CODE = '#39'U'#39';'
+      '            SET @NOTE = '#39'CUSTOMER MODIFIED'#39';'
+      '        END'
+      ''
+      '        EXECUTE INSERT_LOG'
+      '            '#39'CUSTOMER'#39', @CODE, '#39#39', @USER, '#39#39', 0, 0, 0,'
+      '            @NUMEROCLIENTE_OUTPUT, 0, 0, 0, 0, '#39'R'#39', @NOTE, 0, 1;'
+      ''
+      '        COMMIT;'
+      '    END TRY'
+      '    BEGIN CATCH'
+      '        IF @@TRANCOUNT > 0'
+      '            ROLLBACK;'
+      ''
+      '        THROW;'
+      '    END CATCH'
       'END;')
     Left = 3760
     Top = 488
@@ -14432,106 +14830,176 @@ object DMModifyDatabase: TDMModifyDatabase
     AfterExecute = ADD_EDIT_PATINSURANCEAfterExecute
     Connection = FDConnection1
     SQL.Strings = (
-      'Create PROCEDURE [dbo].[ADD_EDIT_PATINSURANCE]'
-      '@NUMEROCLIENTE int, '
-      '@NUMEROPLAN int, '
-      '@PLANMEDICO char (3), '
-      '@RELACION smallint, '
-      '@PERSONCODE char (3), '
-      '@INACTIVE_DATE datetime, '
-      '@CARDHOLDERID char (20), '
-      '@NOGRUPO char (15), '
-      '@HOME_PLAN char (3),'
-      '@PLAN_ID char(8), '
-      '@ELIGIBILITY_CLARIF_CODE char(1), '
-      '@FACILITY_ID char(10), '
-      '@CH_FIRSTNAME char (12), '
-      '@CH_LASTNAME char (15), '
-      '@MEDIGAP_ID char (20), '
-      '@MEDICAID_INDICATOR char (2), '
-      '@PAAI char (2), '
-      '@PP997_G2 char (1), '
-      '@MEDICAID_ID_NUMBER CHAR (20), '
-      '@MEDICAID_AGENCY_NUMBER CHAR (15), '
-      '@CARD_IMAGE INT, '
-      '@PLAN_DETAIL NCHAR (30), '
-      '@PLANESMEDICOSNO INT,'
-      '@USER CHAR(3),'
-      '@NUMEROPLAN_OUT INT OUTPUT,'
-      '@COPAY BIT,'
-      '@INSURANCE_INDEX INT'
-      'AS '
+      'CREATE PROCEDURE [dbo].[ADD_EDIT_PATINSURANCE]'
+      '    @NUMEROCLIENTE INT,'
+      '    @NUMEROPLAN INT,'
+      '    @PLANMEDICO CHAR(3),'
+      '    @RELACION SMALLINT,'
+      '    @PERSONCODE CHAR(3),'
+      '    @INACTIVE_DATE DATETIME,'
+      '    @CARDHOLDERID CHAR(20),'
+      '    @NOGRUPO CHAR(15),'
+      '    @HOME_PLAN CHAR(3),'
+      '    @PLAN_ID CHAR(8),'
+      '    @ELIGIBILITY_CLARIF_CODE CHAR(1),'
+      '    @FACILITY_ID CHAR(10),'
+      '    @CH_FIRSTNAME CHAR(12),'
+      '    @CH_LASTNAME CHAR(15),'
+      '    @MEDIGAP_ID CHAR(20),'
+      '    @MEDICAID_INDICATOR CHAR(2),'
+      '    @PAAI CHAR(2),'
+      '    @PP997_G2 CHAR(1),'
+      '    @MEDICAID_ID_NUMBER CHAR(20),'
+      '    @MEDICAID_AGENCY_NUMBER CHAR(15),'
+      '    @CARD_IMAGE INT,'
+      '    @PLAN_DETAIL NCHAR(30),'
+      '    @PLANESMEDICOSNO INT,'
+      '    @USER CHAR(3),'
+      '    @NUMEROPLAN_OUT INT OUTPUT,'
+      '    @COPAY BIT,'
+      '    @INSURANCE_INDEX INT'
+      'AS'
       'BEGIN'
-      '  begin transaction'
-      '  IF @NUMEROPLAN > 0'
-      '  begin'
-      #9#9'UPDATE [dbo].[PATPLAN]'
-      #9#9'SET [PLANMEDICO] = @PLANMEDICO'
-      #9#9',[RELACION] = @RELACION'
-      #9#9',[PERSONCODE] = @PERSONCODE'
-      #9#9',[INACTIVE_DATE] = @INACTIVE_DATE'
-      #9#9',[CARDHOLDERID] = @CARDHOLDERID'
-      #9#9',[NOGRUPO] = @NOGRUPO'
-      #9#9',[HOME_PLAN] = @HOME_PLAN'
-      #9#9',[PLAN_ID] = @PLAN_ID'
-      #9#9',[ELIGIBILITY_CLARIF_CODE] = @ELIGIBILITY_CLARIF_CODE'
-      #9#9',[FACILITY_ID] = @FACILITY_ID'
-      #9#9',[CH_FIRSTNAME] = @CH_FIRSTNAME'
-      #9#9',[CH_LASTNAME] = @CH_LASTNAME'
-      #9#9',[MEDIGAP_ID] = @MEDIGAP_ID'
-      #9#9',[MEDICAID_INDICATOR] = @MEDICAID_INDICATOR'
-      #9#9',[PAAI] = @PAAI'
-      #9#9',[PP997_G2] = @PP997_G2'
-      #9#9',[MEDICAID_ID_NUMBER] = @MEDICAID_ID_NUMBER'
-      #9#9',[MEDICAID_AGENCY_NUMBER] = @MEDICAID_AGENCY_NUMBER'
-      #9#9',[CARD_IMAGE] = @CARD_IMAGE'
-      #9#9',[PLAN_DETAIL] = @PLAN_DETAIL'
-      #9#9',[PLANESMEDICOSNO] = @PLANESMEDICOSNO'
-      #9#9',[COPAY] = @COPAY'
-      #9#9',[INSURANCE_INDEX] = @INSURANCE_INDEX'
-      #9#9'WHERE NUMEROPLAN = @NUMEROPLAN;'
-      #9#9'select @NUMEROPLAN_OUT = @NUMEROPLAN;'
+      '    SET NOCOUNT ON;'
+      '    SET XACT_ABORT ON;'
+      ''
+      '    DECLARE @ACTION CHAR(1);'
+      '    DECLARE @LOG_TEXT VARCHAR(50);'
+      ''
+      '    BEGIN TRY'
+      '        BEGIN TRANSACTION;'
+      ''
+      '        IF ISNULL(@NUMEROCLIENTE, 0) <= 0'
+      '            THROW 50001, '#39'NUMEROCLIENTE is required.'#39', 1;'
+      ''
+      '        IF ISNULL(@NUMEROPLAN, 0) > 0'
+      '        BEGIN'
+      '            UPDATE dbo.PATPLAN'
+      '               SET PLANMEDICO = @PLANMEDICO,'
+      '                   RELACION = @RELACION,'
+      '                   PERSONCODE = @PERSONCODE,'
+      '                   INACTIVE_DATE = @INACTIVE_DATE,'
+      '                   CARDHOLDERID = @CARDHOLDERID,'
+      '                   NOGRUPO = @NOGRUPO,'
+      '                   HOME_PLAN = @HOME_PLAN,'
+      '                   PLAN_ID = @PLAN_ID,'
       
-        #9#9'EXEC INSERT_LOG '#39'Patient Health Plan updated'#39', '#39'U'#39', '#39#39', @USER,' +
-        ' '#39#39', 0, 0,0,0,0,0,@NUMEROPLAN_OUT,0,'#39'R'#39','#39#39',0,1;'
-      '   end'
-      '   else '
-      '   begin'
-      #9#9'INSERT INTO PATPLAN'
+        '                   ELIGIBILITY_CLARIF_CODE = @ELIGIBILITY_CLARIF' +
+        '_CODE,'
+      '                   FACILITY_ID = @FACILITY_ID,'
+      '                   CH_FIRSTNAME = @CH_FIRSTNAME,'
+      '                   CH_LASTNAME = @CH_LASTNAME,'
+      '                   MEDIGAP_ID = @MEDIGAP_ID,'
+      '                   MEDICAID_INDICATOR = @MEDICAID_INDICATOR,'
+      '                   PAAI = @PAAI,'
+      '                   PP997_G2 = @PP997_G2,'
+      '                   MEDICAID_ID_NUMBER = @MEDICAID_ID_NUMBER,'
       
-        #9#9'(NUMEROCLIENTE, PLANMEDICO, RELACION, PERSONCODE, INACTIVE_DAT' +
-        'E, CARDHOLDERID, NOGRUPO, HOME_PLAN, '
+        '                   MEDICAID_AGENCY_NUMBER = @MEDICAID_AGENCY_NUM' +
+        'BER,'
+      '                   CARD_IMAGE = @CARD_IMAGE,'
+      '                   PLAN_DETAIL = @PLAN_DETAIL,'
+      '                   PLANESMEDICOSNO = @PLANESMEDICOSNO,'
+      '                   COPAY = @COPAY,'
+      '                   INSURANCE_INDEX = @INSURANCE_INDEX'
+      '             WHERE NUMEROPLAN = @NUMEROPLAN'
+      '               AND NUMEROCLIENTE = @NUMEROCLIENTE;'
+      ''
+      '            IF @@ROWCOUNT = 0'
       
-        #9#9'PLAN_ID, ELIGIBILITY_CLARIF_CODE, FACILITY_ID, CH_FIRSTNAME, C' +
-        'H_LASTNAME, MEDIGAP_ID, MEDICAID_INDICATOR,'
+        '                THROW 50002, '#39'Patient insurance record not found' +
+        ' for update.'#39', 1;'
+      ''
+      '            SET @NUMEROPLAN_OUT = @NUMEROPLAN;'
+      '            SET @ACTION = '#39'U'#39';'
+      '            SET @LOG_TEXT = '#39'Patient Health Plan updated'#39';'
+      '        END'
+      '        ELSE'
+      '        BEGIN'
+      '            INSERT INTO dbo.PATPLAN'
+      '            ('
+      '                NUMEROCLIENTE,'
+      '                PLANMEDICO,'
+      '                RELACION,'
+      '                PERSONCODE,'
+      '                INACTIVE_DATE,'
+      '                CARDHOLDERID,'
+      '                NOGRUPO,'
+      '                HOME_PLAN,'
+      '                PLAN_ID,'
+      '                ELIGIBILITY_CLARIF_CODE,'
+      '                FACILITY_ID,'
+      '                CH_FIRSTNAME,'
+      '                CH_LASTNAME,'
+      '                MEDIGAP_ID,'
+      '                MEDICAID_INDICATOR,'
+      '                PAAI,'
+      '                PP997_G2,'
+      '                MEDICAID_ID_NUMBER,'
+      '                MEDICAID_AGENCY_NUMBER,'
+      '                CARD_IMAGE,'
+      '                PLAN_DETAIL,'
+      '                PLANESMEDICOSNO,'
+      '                COPAY,'
+      '                INSURANCE_INDEX'
+      '            )'
+      '            VALUES'
+      '            ('
+      '                @NUMEROCLIENTE,'
+      '                @PLANMEDICO,'
+      '                @RELACION,'
+      '                @PERSONCODE,'
+      '                @INACTIVE_DATE,'
+      '                @CARDHOLDERID,'
+      '                @NOGRUPO,'
+      '                @HOME_PLAN,'
+      '                @PLAN_ID,'
+      '                @ELIGIBILITY_CLARIF_CODE,'
+      '                @FACILITY_ID,'
+      '                @CH_FIRSTNAME,'
+      '                @CH_LASTNAME,'
+      '                @MEDIGAP_ID,'
+      '                @MEDICAID_INDICATOR,'
+      '                @PAAI,'
+      '                @PP997_G2,'
+      '                @MEDICAID_ID_NUMBER,'
+      '                @MEDICAID_AGENCY_NUMBER,'
+      '                @CARD_IMAGE,'
+      '                @PLAN_DETAIL,'
+      '                @PLANESMEDICOSNO,'
+      '                @COPAY,'
+      '                @INSURANCE_INDEX'
+      '            );'
+      ''
+      '            SET @NUMEROPLAN_OUT = SCOPE_IDENTITY();'
+      '            SET @ACTION = '#39'A'#39';'
+      '            SET @LOG_TEXT = '#39'Patient Health Plan inserted'#39';'
+      '        END;'
+      ''
+      '        IF ISNULL(@INSURANCE_INDEX, 0) = 1'
+      '        BEGIN'
+      '            UPDATE dbo.PATPLAN'
+      '               SET INSURANCE_INDEX = 2'
+      '             WHERE NUMEROCLIENTE = @NUMEROCLIENTE'
+      '               AND NUMEROPLAN <> @NUMEROPLAN_OUT'
+      '               AND PLANMEDICO <> '#39'CAS'#39
+      '               AND ISNULL(INSURANCE_INDEX, 0) = 1;'
+      '        END;'
+      ''
+      '        EXEC dbo.INSERT_LOG'
       
-        #9#9'PAAI, PP997_G2, MEDICAID_ID_NUMBER, MEDICAID_AGENCY_NUMBER, CA' +
-        'RD_IMAGE, PLAN_DETAIL, '
-      #9#9'PLANESMEDICOSNO, COPAY, INSURANCE_INDEX)'
-      #9#9'VALUES'
-      
-        #9#9'(@NUMEROCLIENTE, @PLANMEDICO, @RELACION, @PERSONCODE, @INACTIV' +
-        'E_DATE, @CARDHOLDERID, @NOGRUPO, @HOME_PLAN, '
-      
-        #9#9'@PLAN_ID, @ELIGIBILITY_CLARIF_CODE, @FACILITY_ID, @CH_FIRSTNAM' +
-        'E, @CH_LASTNAME, @MEDIGAP_ID, @MEDICAID_INDICATOR,'
-      
-        #9#9'@PAAI, @PP997_G2, @MEDICAID_ID_NUMBER, @MEDICAID_AGENCY_NUMBER' +
-        ', @CARD_IMAGE, @PLAN_DETAIL, '
-      #9#9'@PLANESMEDICOSNO, @COPAY, @INSURANCE_INDEX);'
-      #9#9'set @NUMEROPLAN_OUT = SCOPE_IDENTITY();'
-      
-        #9#9'EXEC INSERT_LOG '#39'Patient Health Plan inserted'#39', '#39'A'#39', '#39#39', @USER' +
-        ', '#39#39', 0, 0,0,0,0,0,@NUMEROPLAN_OUT,0,'#39'R'#39','#39#39',0,1;'
-      #9'end;'
-      #9'if @INSURANCE_INDEX = 1 '
-      #9'begin'
-      
-        #9'  Update PATPLAN set @INSURANCE_INDEX = 2 where NUMEROCLIENTE =' +
-        ' @NUMEROCLIENTE AND NUMEROPLAN <> @NUMEROPLAN_OUT and PLANMEDICO' +
-        ' <> '#39'CAS'#39';'
-      #9'end;'
-      #9'commit'
+        '             @LOG_TEXT, @ACTION, '#39#39', @USER, '#39#39', 0, 0, 0, 0, 0, 0' +
+        ','
+      '             @NUMEROPLAN_OUT, 0, '#39'R'#39', '#39#39', 0, 1;'
+      ''
+      '        COMMIT;'
+      '    END TRY'
+      '    BEGIN CATCH'
+      '        IF @@TRANCOUNT > 0'
+      '            ROLLBACK;'
+      ''
+      '        THROW;'
+      '    END CATCH'
       'END;')
     Left = 3752
     Top = 592
