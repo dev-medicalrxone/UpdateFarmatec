@@ -14640,7 +14640,7 @@ object DMModifyDatabase: TDMModifyDatabase
     SQL.Strings = (
       'CREATE PROCEDURE [dbo].[ADD_EDIT_PACIENTES]'
       '    @NOMBRE CHAR(12),'
-      '    @FECHANACIMIENTO DATETIME,'
+      '    @FECHANACIMIENTO DATE,'
       '    @SEXO INT,'
       '    @DIRECCION1 CHAR(30),'
       '    @ULTTRANS DATETIME,'
@@ -14940,7 +14940,8 @@ object DMModifyDatabase: TDMModifyDatabase
       ''
       '        THROW;'
       '    END CATCH'
-      'END;')
+      'END;'
+      '')
     Left = 3760
     Top = 488
   end
@@ -51890,7 +51891,7 @@ object DMModifyDatabase: TDMModifyDatabase
   object fn_GetBatchClinicalSignatureHash: TFDQuery
     Connection = FDConnection1
     SQL.Strings = (
-      'CREATE dbo.fn_GetBatchClinicalSignatureHash'
+      'CREATE function dbo.fn_GetBatchClinicalSignatureHash'
       '('
       '    @NUMEROCLIENTE INT,'
       '    @GUID VARCHAR(50)'
@@ -57493,5 +57494,11 @@ object DMModifyDatabase: TDMModifyDatabase
       ';')
     Left = 7248
     Top = 1184
+  end
+  object qryNewSP: TFDQuery
+    Connection = FDConnection1
+    OnError = qryNewSPError
+    Left = 7256
+    Top = 1576
   end
 end

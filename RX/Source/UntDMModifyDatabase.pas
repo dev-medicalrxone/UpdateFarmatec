@@ -13,7 +13,7 @@ uses
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Phys, FireDAC.Phys.MSSQL,
   FireDAC.Comp.UI, FireDAC.Phys.ODBCBase, Datasnap.Provider, vcl.dialogs, midas, Midaslib,
   IdBaseComponent, IdComponent, IdUDPBase, IdUDPClient, IdSNTP, Winapi.Windows, IdCoderMIME,
-  Soap.EncdDecd, System.IniFiles;
+  Soap.EncdDecd, System.IniFiles, System.StrUtils;
 
 type
   TDMModifyDatabase = class(TDataModule)
@@ -1050,6 +1050,7 @@ type
     D0_SEG06_WorkersComp_schema: TFDQuery;
     PATIENT_LOOKUP: TFDQuery;
     GET_INVENTORIYINFO: TFDQuery;
+    qryNewSP: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -1263,7 +1264,7 @@ type
       var AAction: TFDErrorAction);
     procedure LOCK_UNLOCKAfterExecute(DataSet: TFDDataSet);
     procedure LOCK_UNLOCK_DELAfterExecute(DataSet: TFDDataSet);
-    function DropConstraint(Token, TableName: String): String;
+
     procedure LOINCAfterExecute(DataSet: TFDDataSet);
     procedure INVENTORY_IMAGEAfterExecute(DataSet: TFDDataSet);
     procedure INSERT_EDIT_SHOPPINGCART_DETAILAfterExecute(DataSet: TFDDataSet);
@@ -1312,6 +1313,8 @@ type
     procedure FDQuery6Error(ASender, AInitiator: TObject;
       var AException: Exception);
     procedure updatePateientPets;
+    procedure qryNewSPError(ASender, AInitiator: TObject;
+      var AException: Exception);
    private
     procedure CreateTable(TableName, NewTableName: String);
     procedure ExecSql2(Token1, SQL_Text: String);
@@ -1659,11 +1662,7 @@ begin
   //================= CLINICAL ALERTS =====================
   ExecQryCreate(RX_CLINICAL_ALERT.SQL.TEXT);
   ExecQryCreate(RX_CLINICAL_APPROVAL.SQL.Text);
-  //================== Same active ingredients ============
-  NDC9_INGREDIENT_MAP.ExecSQL;
-  ExecQryCreate(UpsertNdc9Ingredient.SQL.Text);
-  ExecQryCreate(WC_CHECK_ACTIVE_DUPLICATE_INGREDIENTS.SQL.Text);
-  ExecQryCreate(WC_GET_MISSING_ACTIVE_NDC9_MAP.SQL.Text);
+
   //=======================================================
   ExecQryCreate(Physicians.SQL.Text);
   FDQuery1.SQL.Text := 'Select count(*) trows from Physicians';
@@ -1677,7 +1676,7 @@ begin
   FrmMain.PageControlInfo.ActivePageIndex := 0;
   ExecSql('delete from otc where medicamento = ' + chr(39) + chr(39));
   ExecSql('delete from SurescriptsRX_LABEL');
-  ExecSql('delete from Prescription where medicamento = ' + chr(39) + chr(39));
+  ExecSql('delete from Prescriptions where medicamento = ' + chr(39) + chr(39));
   ExecSql('update otc set GUID = ' + chr(39) + chr(39) + ' where GUID > ' + chr(39) + chr(39));
   ExecSql('update otc set RECORD_LOCKED = 0 where RECORD_LOCKED = 1');
   ExecSql('update otc set CLAIM_STATUS = 0 where CLAIM_STATUS = 1 and DEDUCIBLE = 0 and PAGO_PLAN = 0 and NUMERO_AUTORIZACION = ' + chr(39) + chr(39));
@@ -1723,6 +1722,7 @@ begin
   begin
     HCPCSCodes_import.ExecSQL;
   end;
+  ExecQryCreate(NDC9_INGREDIENT_MAP.SQL.Text);
   ExecQryCreate(INVENTARIO_ITEM.SQL.Text);
   ExecQryCreate(Prescriptions_ByPhone.SQL.Text);
   ExecQryCreate(RX_ADD_EDIT_RX_BYPHONE.SQL.Text);
@@ -1745,35 +1745,59 @@ begin
      'ADD  CONSTRAINT [DF_ElectrReconcDup_REASON]  DEFAULT ('+chr(39) + chr(39) +') FOR [REASON]', Err);
 
   ExecQryCreate(ElectrReconc.SQL.Text);
+  //ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_ID_INSUR]  DEFAULT ((0)) FOR [ID_INSUR]');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.ElectrReconc',
+     'DF_ElectrReconc_ID_INSUR',
+     'ADD  CONSTRAINT [DF_ElectrReconc_ID_INSUR]  DEFAULT (0) FOR [ID_INSUR]', Err);
 
-  ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_ID_INSUR]  DEFAULT ((0)) FOR [ID_INSUR]');
-  ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_STATUS]  DEFAULT ((0)) FOR [STATUS]');
-  ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_DIFFERENCE]  DEFAULT ((0)) FOR [DIFFERENCE]');
-  ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_CYCLE]  DEFAULT (' +chr(39) + chr(39) + ') FOR [CYCLE]');
-  ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_TCN]  DEFAULT (' +chr(39) + chr(39) + ') FOR [TCN]');
+  //ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_STATUS]  DEFAULT ((0)) FOR [STATUS]');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.ElectrReconc',
+     'DF_ElectrReconc_STATUS',
+     'ADD  CONSTRAINT [DF_ElectrReconc_STATUS]  DEFAULT (0) FOR [STATUS]', Err);
+
+
+  //ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_DIFFERENCE]  DEFAULT ((0)) FOR [DIFFERENCE]');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.ElectrReconc',
+     'DF_ElectrReconc_DIFFERENCE',
+     'ADD  CONSTRAINT [DF_ElectrReconc_DIFFERENCE]  DEFAULT (0) FOR [DIFFERENCE]', Err);
+
+
+  //ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_CYCLE]  DEFAULT (' +chr(39) + chr(39) + ') FOR [CYCLE]');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.ElectrReconc',
+     'DF_ElectrReconc_CYCLE',
+     'ADD  CONSTRAINT [DF_ElectrReconc_CYCLE]  DEFAULT ('+chr(39) + chr(39) +') FOR [CYCLE]', Err);
+
+  //ExecSql('ALTER TABLE [dbo].[ElectrReconc] ADD  CONSTRAINT [DF_ElectrReconc_TCN]  DEFAULT (' +chr(39) + chr(39) + ') FOR [TCN]');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.ElectrReconc',
+     'DF_ElectrReconc_TCN',
+     'ADD  CONSTRAINT [DF_ElectrReconc_TCN]  DEFAULT ('+chr(39) + chr(39) +') FOR [TCN]', Err);
+
   //==============================================
 
-  ExecSql('delete * from WILLCALL_STATUS where BAG_NUMBER is null');
-  ExecSql('drop table dbo.ep_comunication_numberptt');
-  ExecSql('drop table dbo.ep_comunication_numberpvd');
-  ExecSql('drop table dbo.ep_coo');
-  ExecSql('drop table dbo.ep_date_dayssupply');
-  ExecSql('drop table dbo.ep_dru');
-  ExecSql('drop table dbo.ep_dru_free_text');
-  ExecSql('drop table dbo.ep_ptt');
-  ExecSql('drop table dbo.ep_pvd_prescriber');
-  ExecSql('drop table dbo.ep_reference_numberpvd');
-  ExecSql('drop table dbo.ep_req');
-  ExecSql('drop table dbo.ep_res');
-  ExecSql('drop table dbo.ep_sts');
-  ExecSql('drop table dbo.ep_sts');
-  ExecSql('drop table dbo.ep_uib');
-  ExecSql('drop table dbo.ep_uih');
-  ExecSql('drop table dbo.ep_uit');
-  ExecSql('drop table dbo.ep_uiz');
-  ExecSql('drop table dbo.ep_una');
+  ExecSql('delete from WILLCALL_STATUS where BAG_NUMBER is null');
+  CommonRoutine.DropTableIfExists('ep_comunication_numberptt');
+  CommonRoutine.DropTableIfExists('ep_coo');
+  CommonRoutine.DropTableIfExists('ep_date_dayssupply');
+  CommonRoutine.DropTableIfExists('ep_dru');
+  CommonRoutine.DropTableIfExists('ep_dru_free_text');
+  CommonRoutine.DropTableIfExists('ep_ptt');
+  CommonRoutine.DropTableIfExists('ep_pvd_prescriber');
+  CommonRoutine.DropTableIfExists('ep_reference_numberpvd');
+  CommonRoutine.DropTableIfExists('ep_req');
+  CommonRoutine.DropTableIfExists('ep_res');
+  CommonRoutine.DropTableIfExists('ep_res');
+  CommonRoutine.DropTableIfExists('ep_sts');
+  CommonRoutine.DropTableIfExists('ep_sts');
+  CommonRoutine.DropTableIfExists('ep_uib');
+  CommonRoutine.DropTableIfExists('ep_uih');
+  CommonRoutine.DropTableIfExists('ep_uit');
+  CommonRoutine.DropTableIfExists('ep_uiz');
+  CommonRoutine.DropTableIfExists('ep_una');
+
+
   CreateFields('WILLCALL', 'FILL_NUMBER', 'smallint null');
   CreateFields('WILLCALLHistory', 'FILL_NUMBER', 'smallint null');
+
   with CommonRoutine do
   begin
     DropColumnIfExists('INVENTARIOPISO', 'GROUP_QTY');
@@ -1857,9 +1881,13 @@ begin
   CreateFields('OTC', 'CRN', 'VARCHAR(15) default ' + chr(39) + chr(39) + ' null');
 
   //ExecSql('ALTER TABLE OTC DROP COLUMN CRN');
-  ExecSql('ALTER TABLE OTC DROP COLUMN IsCashSale');
+  CommonRoutine.DropColumnIfExists('OTC', 'IsCashSale');
+  //ExecSql('ALTER TABLE OTC DROP COLUMN IsCashSale');
   //ExecSql('ALTER TABLE OTC DROP COLUMN PAIDDATE_REC');
-  ExecSql('ALTER TABLE otc ADD CONSTRAINT df_APPRISS_SENT DEFAULT 0 FOR APPRISS_SENT');
+  //ExecSql('ALTER TABLE otc ADD CONSTRAINT df_APPRISS_SENT DEFAULT 0 FOR APPRISS_SENT');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.otc',
+     'df_APPRISS_SENT',
+     'ADD  CONSTRAINT [df_APPRISS_SENT]  DEFAULT (0) FOR [APPRISS_SENT]', Err);
   with CommonRoutine do
   begin
     DropColumnIfExists('OTC', 'SCHEDULE_RX_ID_NO');
@@ -1869,7 +1897,11 @@ begin
     DropColumnIfExists('OTC', 'DAYS_SUPLY');
   end;
 
-  ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_IOU DEFAULT 0 FOR IOU');
+  //ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_IOU DEFAULT 0 FOR IOU');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.otc',
+     'DF_IOU',
+     'ADD  CONSTRAINT [DF_IOU]  DEFAULT (0) FOR [IOU]', Err);
+
   CreateFields('OTC', 'INV_QTY_TODATE', 'DECIMAL(18,2) default(0) null');
   CreateFields('OTC', 'RELATED_OTC_NUMBER', 'INT default(0) null');
   CreateFields('OTC', 'IOU', 'DECIMAL(18,2) default(0) null');
@@ -1928,7 +1960,8 @@ begin
     ExecSql('ALTER TABLE LABELCODES ALTER COLUMN VIETNAMESE NCHAR(296)');
     ExecSql('ALTER TABLE LABELCODES ALTER COLUMN CHINESE NCHAR(296)');
   end;
-  ExecSql('ALTER TABLE LABELCODES DROP COLUMN INDICATIONS_VIET');
+  CommonRoutine.DropColumnIfExists('LABELCODES', 'INDICATIONS_VIET');
+  //ExecSql('ALTER TABLE LABELCODES DROP COLUMN INDICATIONS_VIET');
 
 
 
@@ -1941,13 +1974,12 @@ begin
 
 
   //============  Planes medicos=============================================
-  ExecSql('ALTER TABLE dbo.PLANESMEDICOS DROP CONSTRAINT PK_PLANESMEDICOS;');
-  ExecSql('ALTER TABLE dbo.PLANESMEDICOS ADD CONSTRAINT PK_PLANESMEDICOS PRIMARY KEY (PLANESMEDICOSNO)');
+  CommonRoutine.DropConstraintIfExistsSafe('PLANESMEDICOS', 'PK_PLANESMEDICOS', Err);
+  //ExecSql('ALTER TABLE dbo.PLANESMEDICOS ADD CONSTRAINT PK_PLANESMEDICOS PRIMARY KEY (PLANESMEDICOSNO)');
+  CommonRoutine.CreatePrimaryKeyIfNotExists('PLANESMEDICOS', 'PK_PLANESMEDICOS', 'PLANESMEDICOSNO', 'dbo');
   CreateFields('PLANESMEDICOS', 'PAYMENT_TYPE', 'char(2) default('+ chr(39) + '04' + chr(39)+') null');
   ExecSql('Update PlanesMedicos set PAYMENT_TYPE = '+ chr(39) + '04' + chr(39)+' where PAYMENT_TYPE IS NULL');
   ExecSql('Update PlanesMedicos set PAYMENT_TYPE = '+ chr(39) + '01' + chr(39)+' where ABREVIATURA = ' + chr(39)+ 'CAS' + CHR(39));
-
-
   CreateFields('PLANESMEDICOS', 'RESTRICTED', 'bit default(0) null');
   ExecSql('Update PlanesMedicos set RESTRICTED = 0 where RESTRICTED IS NULL');
   CreateFields('PLANESMEDICOS', 'RELAY_HEALTH', 'INT default(1) null');
@@ -1956,9 +1988,8 @@ begin
   ExecSql('Update PlanesMedicos set CHANGE_HEALTHCARE = 2 where CHANGE_HEALTHCARE IS NULL');
   CreateFields('PLANESMEDICOS', 'RSI', 'INT default(1) null');
   ExecSql('Update PlanesMedicos set RSI = 3 where RSI IS NULL');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN SWITCH');
-  //CreateFields('PLANESMEDICOS', 'SWITCH', 'nchar(15) default('+ CHR(39) + 'RELAY HEALTH' + CHR(39) +') null');
-  //ExecSql('Update PlanesMedicos set SWITCH = '+ CHR(39) + 'RELAY HEALTH' + CHR(39) + ' where SWITCH IS NULL');
+  CommonRoutine.DropColumnIfExists('PlanesMedicos', 'SWITCH');
+
   CreateFields('PLANESMEDICOS', 'PROFIT_SHARING_PERC', 'decimal(18,2) null');
   ExecSql('Update PlanesMedicos set PROFIT_SHARING_PERC = 0 where PROFIT_SHARING_PERC IS NULL');
 
@@ -1975,9 +2006,9 @@ begin
     ExecSql('Update PlanesMedicos set PAPER_CLAIM = 0 where MANUAL_PLAN = ' + chr(39) + 'F' + chr(39));
   end;
   ExecSql('Update PlanesMedicos set PAPER_CLAIM = 0 where PAPER_CLAIM IS NULL');
-  ExecSql('ALTER TABLE PlanesMedicos DROP COLUMN MULTI_RECETA');
-  ExecSql('ALTER TABLE PlanesMedicos DROP COLUMN COMPOUND_SEGMENT');
-  ExecSql('ALTER TABLE PlanesMedicos DROP COLUMN MANUAL_PLAN');
+  CommonRoutine.DropColumnIfExists('PlanesMedicos', 'MULTI_RECETA');
+  CommonRoutine.DropColumnIfExists('PlanesMedicos', 'COMPOUND_SEGMENT');
+  CommonRoutine.DropColumnIfExists('PlanesMedicos', 'MANUAL_PLAN');
   ExecSql('Update PlanesMedicos set LTC_SERVICE_PROVIDER_ID = '+chr(39)+chr(39)+' where LTC_SERVICE_PROVIDER_ID IS NULL');
   ExecSql('Update PlanesMedicos set LTC_SERVICE_PROVIDER_QUAL = '+chr(39)+chr(39)+' where LTC_SERVICE_PROVIDER_QUAL IS NULL');
   CreateFields('PLANESMEDICOS', 'LTC_SERVICE_PROVIDER_ID', 'nchar(15) null');
@@ -1985,20 +2016,19 @@ begin
   CreateFields('PLANESMEDICOS', 'SCC_420_DK', 'char(2) null');
   CreateFields('PLANESMEDICOS', 'LTC', 'bit null');
   ExecSql('Update PlanesMedicos set LTC = 0 where LTC IS NULL');
-  //CreateFields('PLANESMEDICOS', 'SCHEMA1', 'int null');
-  //ExecSql('Update PlanesMedicos set SCHEMA1 = 9 where SCHEMA1 IS NULL');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN SCHEMA1');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'SCHEMA1');
   CreateFields('PLANESMEDICOS', 'F340B', 'bit null');
   ExecSql('Update PlanesMedicos set F340B = 0 where F340B IS NULL');
   CreateFields('PLANESMEDICOS', 'OTHER_COVERAGE_CODE_DEFAULT', 'char(1) NULL');
   ExecSql('UPDATE PLANESMEDICOS SET OVERRIDE_SYSTEM_DEFAULT_PRICE = 1 WHERE PRICE_TABLE_ID > 0');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN MEDIGAP_ID');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN MEDICAID_INDI');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN PAAI');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN PP997_G2');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN MEDICAID_ID_NUMBER');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN MEDICAID_AGENCY_NUMBER');
-  ExecSql('ALTER TABLE PLANESMEDICOS DROP COLUMN CARDHOLDERID');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'MEDIGAP_ID');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'MEDICAID_INDI');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'PAAI');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'PP997_G2');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'MEDICAID_ID_NUMBER');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'MEDICAID_AGENCY_NUMBER');
+  CommonRoutine.DropColumnIfExists('PLANESMEDICOS', 'CARDHOLDERID');
+
 
   //=========================================================================
 
@@ -2014,7 +2044,6 @@ begin
   CreateFields('INVENTORY_INOUT_REPORT', 'ndc', 'NCHAR(11) null');
   CreateFields('INVENTORY_INOUT_REPORT', 'po', 'nchar(15) null');
   CreateFields('INVENTORY_INOUT_REPORT', 'customer_supplier', 'nchar(45) null');
-
   CreateFieldsImages2('IMAGES', 'UPLOADED_CLOUD', 'bit default(0) NOT NULL');
   //==============WILLCALL_STATUS===============================================
   CreateFields('WILLCALL_STATUS', 'DONE', 'bit default(0) null');
@@ -2023,21 +2052,21 @@ begin
   CreateFields('WILLCALL_STATUS', 'GUID', 'NCHAR(36) null');
   CreateFields('WILLCALL_STATUS_HISTORY', 'GUID', 'NCHAR(36) null');
 
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN ADDRESS1');
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN ADDRESS2');
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN CITY');
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN ZIPCODE');
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN NAME');
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN LASTNAME');
-  ExecSql('ALTER TABLE WILLCALL_STATUS DROP COLUMN MAIDENNAME');
+  CommonRoutine.DropColumnIfExists('', 'ADDRESS1');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS', 'ADDRESS2');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS', 'CITY');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS', 'ZIPCODE');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS', 'NAME');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS', 'LASTNAME');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS', 'MAIDENNAME');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'ADDRESS1');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'ADDRESS2');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'CITY');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'ZIPCODE');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'NAME');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'LASTNAME');
+  CommonRoutine.DropColumnIfExists('WILLCALL_STATUS_HISTORY', 'MAIDENNAME');
 
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN ADDRESS1');
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN ADDRESS2');
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN CITY');
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN ZIPCODE');
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN NAME');
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN LASTNAME');
-  ExecSql('ALTER TABLE WILLCALL_STATUS_HISTORY DROP COLUMN MAIDENNAME');
   //============================================================================
 
   CreateFields('PRINT_QUERIES', 'PRINT_PATIENT_EDUCATION', 'bit DEFAULT(1) null');
@@ -2060,10 +2089,11 @@ begin
   CreateFields('PASSWORDS', 'POS_MODIFY_PAYOUT', 'bit default(0) null');
   ExecSql('UPDATE PASSWORDS SET POS_MODIFY_PAYOUT = 0 WHERE POS_MODIFY_PAYOUT IS NULL');
   ExecSql('UPDATE PASSWORDS SET CAMBIARCOSTOYPRECIOVENTA = 0 WHERE CAMBIARCOSTOYPRECIOVENTA IS NULL');
-  ExecSql('ALTER TABLE passwords DROP CONSTRAINT PK_PASSWORDS');
-  ExecSql('ALTER TABLE passwords ADD PRIMARY KEY (USERNO)');
+  CommonRoutine.DropConstraintIfExistsSafe('passwords', 'PK_PASSWORDS', Err);
+  CommonRoutine.CreatePrimaryKeyIfNotExists('passwords', 'PK__PASSWORD__7B9E268E02AAFB66', 'USERNO', 'dbo');
+  //ExecSql('ALTER TABLE passwords ADD PRIMARY KEY (USERNO)');
   ExecSql('UPDATE PASSWORDS SET PASSWORD_COL = 123456 WHERE PASSWORD_COL IS NULL');
-  ExecSql('UPDATE PASSWORDS SET PASSWORDCOL = 123456 WHERE PASSWORDCOL IS NULL');
+  //ExecSql('UPDATE PASSWORDS SET PASSWORDCOL = 123456 WHERE PASSWORDCOL IS NULL');
   CreateFields('PASSWORDS', 'RX_PRESCRIPTION_NOTE', 'bit  default(0) null');
   ExecSql('UPDATE PASSWORDS SET RX_PRESCRIPTION_NOTE = 1 WHERE RX_PRESCRIPTION_NOTE IS NULL');
   CreateFields('PASSWORDS', 'RX_UPDATE_INV_BROWSE', 'bit  default(0) null');
@@ -2096,18 +2126,13 @@ begin
   CreateFields('PASSWORDS', 'POS_ADD_BUTTONS', 'BIT NULL');
 
   //=============== PACIENTES ===========================================
-  ExecSql('ALTER TABLE PACIENTES DROP COLUMN PATROCINIO');
-  //ExecSql('ALTER TABLE PACIENTES DROP COLUMN VETERANO');
-  //ExecSql('ALTER TABLE PACIENTES DROP COLUMN NUMERO_REGISTRO_COMERCIANTE');
-  ExecSql('ALTER TABLE PACIENTES DROP COLUMN TAX_EXEMPT');
-  ExecSql('ALTER TABLE PACIENTES DROP COLUMN CLASIFICATION');
-  ExecSql('ALTER TABLE PACIENTES DROP COLUMN RETAILPRICE_SELECTED');
+  CommonRoutine.DropColumnIfExists('PACIENTES', 'PATROCINIO');
+  CommonRoutine.DropColumnIfExists('PACIENTES', 'CLASIFICATION');
+  CommonRoutine.DropColumnIfExists('PACIENTES', 'RETAILPRICE_SELECTED');
   CreateFields('PACIENTES', 'WEIGHT', 'DECIMAL(5,2) null');
   CreateFields('PACIENTES', 'HEIGHT', 'DECIMAL(5,2) null');
   CreateFields('PACIENTES', 'HEIGHT', 'DECIMAL(5,2) null');
   CreateFields('PACIENTES', 'DELIVERY_NOTE', 'VARCHAR(1000) NULL');
-
-
   CreateFields('PACIENTES', 'MdRestrict', 'int default(0) null');
   CreateFields('PACIENTES', 'ACTIVE', 'bit default(1) null');
   ExecSql('UPDATE PACIENTES SET ACTIVE = 1');
@@ -2127,10 +2152,62 @@ begin
   end;
   CreateFields('PACIENTES', 'DELIVERY', 'bit null');
   ExecSql('UPDATE PACIENTES SET DELIVERY = 0 WHERE DELIVERY IS NULL');
+
   ExecSql('ALTER TABLE pacientes ALTER COLUMN FACILITY_ID int NULL');
   ExecSql('ALTER TABLE pacientes ALTER COLUMN DECEASED bit NULL');
   ExecSql('ALTER TABLE pacientes ALTER COLUMN ALLERGY bit NULL');
   ExecSql('ALTER TABLE pacientes ALTER COLUMN OVERRIDE_SYSTEM_DEFAULT_PRICE bit NULL');
+
+  CommonRoutine.DropConstraint('PACIENTES');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_DEUDA',
+     'ADD  CONSTRAINT [DF_PACIENTES_DEUDA]  DEFAULT (0) FOR [DEUDA]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_LIMITECREDITO',
+     'ADD  CONSTRAINT [DF_PACIENTES_LIMITECREDITO]  DEFAULT (0) FOR [LIMITECREDITO]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_LIMITECREDITO',
+     'ADD  CONSTRAINT [DF_PACIENTES_LIMITECREDITO]  DEFAULT (0) FOR [LIMITECREDITO]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_LAWAY',
+     'ADD  CONSTRAINT [DF_PACIENTES_LAWAY]  DEFAULT (0) FOR [LAWAY]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_AUSPICIO',
+     'ADD  CONSTRAINT [DF_PACIENTES_AUSPICIO]  DEFAULT (0) FOR [AUSPICIO]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_VETERANO',
+     'ADD  CONSTRAINT [DF_PACIENTES_VETERANO]  DEFAULT (0) FOR [VETERANO]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_FACILITY_ID',
+     'ADD  CONSTRAINT [DF_PACIENTES_FACILITY_ID]  DEFAULT (0) FOR [FACILITY_ID]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_OVERRIDE_SYSTEM_DEFAULT_PRICE',
+     'ADD  CONSTRAINT [DF_PACIENTES_OVERRIDE_SYSTEM_DEFAULT_PRICE]  DEFAULT (0) FOR [OVERRIDE_SYSTEM_DEFAULT_PRICE]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_ALLERGY',
+     'ADD  CONSTRAINT [DF_PACIENTES_ALLERGY]  DEFAULT (0) FOR [ALLERGY]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_DECEASED',
+     'ADD  CONSTRAINT [DF_PACIENTES_DECEASED]  DEFAULT (0) FOR [DECEASED]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_RECORD_LOCKED',
+     'ADD  CONSTRAINT [DF_PACIENTES_RECORD_LOCKED]  DEFAULT (0) FOR [RECORD_LOCKED]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_INSTANCIA',
+     'ADD  CONSTRAINT [DF_PACIENTES_INSTANCIA]  DEFAULT (0) FOR [INSTANCIA]', Err);
+
+
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_AUSPICIO DEFAULT 0 FOR AUSPICIO');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_DEUDA_WEB DEFAULT 0 FOR DEUDA_WEB');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_ACCIONES DEFAULT 0 FOR ACCIONES');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_PATROCINIO DEFAULT 0 FOR PATROCINIO');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_VETERANO DEFAULT 0 FOR VETERANO');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_FACILITY_ID DEFAULT 0 FOR FACILITY_ID');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_OVERRIDE_SYSTEM_DEFAULT_PRICE DEFAULT 0 FOR OVERRIDE_SYSTEM_DEFAULT_PRICE');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_ALLERGY DEFAULT 0 FOR ALLERGY');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_DECEASED DEFAULT 0 FOR DECEASED');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_RECORD_LOCKED DEFAULT 0 FOR RECORD_LOCKED');
+  //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_INSTANCIA DEFAULT 0 FOR INSTANCIA');
   //=============== Inventory==================================================
   //CreateFields('INVENTARIOPISO', 'ALT_NDC', 'NCHAR(11) null');
   CreateFields('INVENTARIOPISO', 'HCPCS_CODE', 'NCHAR(11) null');
@@ -2158,54 +2235,52 @@ begin
   CreateFields('InventarioPiso', 'DF_QTY', 'NUMERIC(18,2) null');
   CreateFields('InventarioPiso', 'DF_SIG', 'CHAR(4) null');
   //CreateFields('INVENTARIOPISO', 'TRIPLES_PRODUCT', 'bit  default(0) null');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN OTCNUMBER');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN QTYINVENTARIO10');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN Gm1');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN Gm2');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN ALWDISC');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN ROUND');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DepL');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DepS');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN NLINE');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN EBT');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN Sigis');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN INVENTARIOPISOCard');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN Pseudo');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN pseudoMgD');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PseudoMgP');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN NonRefund');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PepSpray');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN MaxPerTx');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SkipPriceUpd');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DtSkipPriceUpd');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SkipPriceUpdInit');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN Gm3');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN line_loc');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN shelf_loc');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN stock_loc');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN ITEM_NUM');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SIZE_IT');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN LST_MODIF_PR');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN AskID');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SkipPriceDistUpd');
-  //ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN vendor_ide');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN pseudo');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN pep_spray');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SHOW_ON_ECOMM');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN BARCODE2');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DAILY_SALE_ACTIVE');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN DAILY_SPECIAL_PRICE');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN SHOWINDIVIDUAL');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRECIOVENTA3');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PROCESSED_FOOD');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TRIPLES_PRODUCT');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN CUSTOMER_ID_REQUIRED');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRODUCT_CLASSIFICATION');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN TYPIST');
-  ExecSql('ALTER TABLE INVENTARIOPISO DROP COLUMN PRODUCT_IMAGE');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'OTCNUMBER');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'QTYINVENTARIO10');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'Gm1');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'Gm2');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'ALWDISC');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'ROUND');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'DepL');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'DepS');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'NLINE');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'EBT');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'Sigis');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'INVENTARIOPISOCard');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'Pseudo');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'pseudoMgD');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'PseudoMgP');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'NonRefund');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'PepSpray');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'MaxPerTx');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'SkipPriceUpd');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'DtSkipPriceUpd');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'SkipPriceUpdInit');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'Gm3');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'line_loc');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'shelf_loc');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'stock_loc');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'ITEM_NUM');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'SIZE_IT');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'LST_MODIF_PR');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'AskID');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'kipPriceDistUpd');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'pseudo');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'pep_spray');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'SHOW_ON_ECOMM');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'BARCODE2');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'DAILY_SALE_ACTIVE');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'DAILY_SPECIAL_PRICE');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'SHOWINDIVIDUAL');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'PRECIOVENTA3');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'PROCESSED_FOOD');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'TRIPLES_PRODUCT');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'CUSTOMER_ID_REQUIRED');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'PRODUCT_CLASSIFICATION');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'TYPIST');
+  CommonRoutine.DropColumnIfExists('INVENTARIOPISO', 'PRODUCT_IMAGE');
 
   //============================================================================
-
 
   ExecSql('Update OTC set WC_PICKUP = 0 WHERE WC_PICKUP <> 0');
   CreateFields('OTC', 'GUID', 'VARCHAR(36) null');
@@ -2238,6 +2313,7 @@ begin
   Finally
     //
   End;
+
 
   ExecQryCreate(QUICK_RX.SQL.Text);
   ExecQryCreate(SurescriptsRX_LABEL.SQL.Text);
@@ -2301,12 +2377,10 @@ begin
   CreateFields('PACIENTES', 'RECORD_LOCKED', 'bit  default(0) null');
 
   CreateFields('PACIENTES', 'INSTANCIA', 'INT  default(0) null');
-  ExecSql('ALTER TABLE OTC DROP COLUMN COTHERAMOUNTCLAIMEDSUB');
-  ExecSql('ALTER TABLE OTC DROP COLUMN CDSOTCOTHERAMOUNTCLAIMEDSUB');
-  ExecSql('ALTER TABLE OTC DROP COLUMN OTCOTHERAMOUNTCLAIMEDSUB');
-  //ExecSql('ALTER TABLE OTC_HISTORY DROP COLUMN COTHERAMOUNTCLAIMEDSUB');
-  //ExecSql('ALTER TABLE OTC_HISTORY DROP COLUMN CDSOTCOTHERAMOUNTCLAIMEDSUB');
-  //ExecSql('ALTER TABLE OTC_HISTORY DROP COLUMN OTCOTHERAMOUNTCLAIMEDSUB');
+  CommonRoutine.DropColumnIfExists('OTC', 'COTHERAMOUNTCLAIMEDSUB');
+  CommonRoutine.DropColumnIfExists('OTC', 'CDSOTCOTHERAMOUNTCLAIMEDSUB');
+  CommonRoutine.DropColumnIfExists('OTC', 'OTCOTHERAMOUNTCLAIMEDSUB');
+
 
   //=============== change Inventario DataType to nchar(150) ==========================
   FDQuery1.SQL.Text := 'SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '+ CHR(39) + 'INVENTARIOPISO' + chr(39) + ' AND ' +
@@ -2412,28 +2486,21 @@ begin
     ExecSql('ALTER TABLE LOG ALTER COLUMN NOTE NVARCHAR(MAX)');
   end;
   //======================================================================================
-    DropConstraint('%WILLCALL_','WILLCALL_STATUS');
-    ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_NOTIFICATION0 DEFAULT 0 FOR NOTIFICATION0');
-    ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_TIME_CREATED DEFAULT getdate() FOR TIME_CREATED');
-    ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_RTS DEFAULT 0 FOR RTS');
+    CommonRoutine.DropConstraint('WILLCALL_STATUS');
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+     'DF_TIME_CREATED',
+     'ADD  CONSTRAINT [DF_TIME_CREATED]  DEFAULT (GETDATE()) FOR [TIME_CREATED]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+     'DF_NOTIFICATION0',
+     'ADD  CONSTRAINT [DF_NOTIFICATION0]  DEFAULT (0) FOR [NOTIFICATION0]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+     'DF_RTS',
+     'ADD  CONSTRAINT [DF_RTS]  DEFAULT (0) FOR [RTS]', Err);
 
 
 
-    DropConstraint('PACIENTES','PACIENTES');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_DEUDA DEFAULT 0 FOR DEUDA');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_LIMITECREDITO DEFAULT 0 FOR LIMITECREDITO');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_LAWAY DEFAULT 0 FOR LAWAY');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_AUSPICIO DEFAULT 0 FOR AUSPICIO');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_DEUDA_WEB DEFAULT 0 FOR DEUDA_WEB');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_ACCIONES DEFAULT 0 FOR ACCIONES');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_PATROCINIO DEFAULT 0 FOR PATROCINIO');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_VETERANO DEFAULT 0 FOR VETERANO');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_FACILITY_ID DEFAULT 0 FOR FACILITY_ID');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_OVERRIDE_SYSTEM_DEFAULT_PRICE DEFAULT 0 FOR OVERRIDE_SYSTEM_DEFAULT_PRICE');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_ALLERGY DEFAULT 0 FOR ALLERGY');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_DECEASED DEFAULT 0 FOR DECEASED');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_RECORD_LOCKED DEFAULT 0 FOR RECORD_LOCKED');
-    ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_INSTANCIA DEFAULT 0 FOR INSTANCIA');
 
   //=============== change INVENTARIOPISO DataType to DECIMAL(18,2) ==========================
   FDQuery1.SQL.Text := 'SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '+ CHR(39) + 'INVENTARIOPISO'+ chr(39) + ' AND ' +
@@ -2462,39 +2529,112 @@ begin
     ExecSql('ALTER TABLE INVENTARIOPISO ALTER COLUMN AAC_PRICE DECIMAL(18,2)');
     ExecSql('ALTER TABLE INVENTARIOPISO ALTER COLUMN METRICSIZE DECIMAL(18,2)');
   end;
-    DropConstraint('INVENT','INVENTARIOPISO');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_FECHA_EXPIRACION DEFAULT getdate() FOR FECHA_EXPIRACION');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_CMAXINVENTARIO DEFAULT 0 FOR CMAXINVENTARIO');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_CMININVENTARIO DEFAULT 0 FOR CMININVENTARIO');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_STATUS DEFAULT ' + chr(39) +  'A' + chr(39) + ' FOR STATUS');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PRICE_TABLE_ID DEFAULT 0 FOR PRICE_TABLE_ID');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_OVERRIDE_SYSTEM_DEFAULT_PRICE DEFAULT 0 FOR OVERRIDE_SYSTEM_DEFAULT_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PRICE_UPDATE DEFAULT 0 FOR PRICE_UPDATE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PSEUDOEPHEDRINE DEFAULT 0 FOR PSEUDOEPHEDRINE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_EDITAR_PRECIO DEFAULT 1 FOR EDITAR_PRECIO');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_QTYINVENTARIO DEFAULT 0 FOR QTYINVENTARIO');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_COSTO DEFAULT 0 FOR COSTO');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_ESPECIAL DEFAULT 0 FOR ESPECIAL');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PRECIO DEFAULT 0 FOR PRECIO');
+    CommonRoutine.DropConstraint('INVENTARIOPISO');
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+     'DF_INVENTARIOPISO_FECHA_EXPIRACION',
+     'ADD  CONSTRAINT [DF_INVENTARIOPISO_FECHA_EXPIRACION]  DEFAULT (getdate()) FOR [FECHA_EXPIRACION]', Err);
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+     'DF_INVENTARIOPISO_CMAXINVENTARIO',
+     'ADD  CONSTRAINT [DF_INVENTARIOPISO_CMAXINVENTARIO]  DEFAULT (0) FOR [CMAXINVENTARIO]', Err);
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+     'DF_INVENTARIOPISO_CMAXINVENTARIO',
+     'ADD  CONSTRAINT [DF_INVENTARIOPISO_CMAXINVENTARIO]  DEFAULT (0) FOR [CMAXINVENTARIO]', Err);
 
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_RBP DEFAULT 0 FOR RBP');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_METRICSIZE DEFAULT 0 FOR METRICSIZE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PACKAGESIZE DEFAULT 0 FOR PACKAGESIZE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PRECIO2 DEFAULT 0 FOR PRECIO2');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_ROBOT DEFAULT 0 FOR ROBOT');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_PRECIOVENTA2 DEFAULT 0 FOR PRECIOVENTA2');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_WAC_PRICE DEFAULT 0 FOR WAC_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_MAC_PRICE DEFAULT 0 FOR MAC_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_DIRECT_PRICE DEFAULT 0 FOR DIRECT_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_UC_PRICE DEFAULT 0 FOR UC_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_FOODITEM DEFAULT 0 FOR FOODITEM');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_INITIAL_QTY DEFAULT 0 FOR INITIAL_QTY');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_RECIPE_PRICE DEFAULT 0 FOR RECIPE_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_RECIPE DEFAULT 0 FOR RECIPE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_KITCHEN DEFAULT 0 FOR KITCHEN');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_DAILY_SPECIAL_PRICE DEFAULT 0 FOR DAILY_SPECIAL_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_AAC_PRICE DEFAULT 0 FOR AAC_PRICE');
-    ExecSql('ALTER TABLE [INVENTARIOPISO] ADD CONSTRAINT DF_INVENTARIOPISO_NONEBC DEFAULT 0 FOR NONEBC');
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+    'DF_INVENTARIOPISO_CMININVENTARIO',
+    'ADD CONSTRAINT [DF_INVENTARIOPISO_CMININVENTARIO] DEFAULT (0) FOR [CMININVENTARIO]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_STATUS',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_STATUS] DEFAULT (''A'') FOR [STATUS]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_PRICE_TABLE_ID',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_PRICE_TABLE_ID] DEFAULT (0) FOR [PRICE_TABLE_ID]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_OVERRIDE_SYSTEM_DEFAULT_PRICE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_OVERRIDE_SYSTEM_DEFAULT_PRICE] DEFAULT (0) FOR [OVERRIDE_SYSTEM_DEFAULT_PRICE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_PRICE_UPDATE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_PRICE_UPDATE] DEFAULT (0) FOR [PRICE_UPDATE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_PSEUDOEPHEDRINE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_PSEUDOEPHEDRINE] DEFAULT (0) FOR [PSEUDOEPHEDRINE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_EDITAR_PRECIO',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_EDITAR_PRECIO] DEFAULT (1) FOR [EDITAR_PRECIO]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_QTYINVENTARIO',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_QTYINVENTARIO] DEFAULT (0) FOR [QTYINVENTARIO]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_COSTO',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_COSTO] DEFAULT (0) FOR [COSTO]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_ESPECIAL',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_ESPECIAL] DEFAULT (0) FOR [ESPECIAL]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_PRECIO',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_PRECIO] DEFAULT (0) FOR [PRECIO]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_RBP',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_RBP] DEFAULT (0) FOR [RBP]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_METRICSIZE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_METRICSIZE] DEFAULT (0) FOR [METRICSIZE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_PACKAGESIZE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_PACKAGESIZE] DEFAULT (0) FOR [PACKAGESIZE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_ROBOT',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_ROBOT] DEFAULT (0) FOR [ROBOT]', Err);
+
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_WAC_PRICE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_WAC_PRICE] DEFAULT (0) FOR [WAC_PRICE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_MAC_PRICE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_MAC_PRICE] DEFAULT (0) FOR [MAC_PRICE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_DIRECT_PRICE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_DIRECT_PRICE] DEFAULT (0) FOR [DIRECT_PRICE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_UC_PRICE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_UC_PRICE] DEFAULT (0) FOR [UC_PRICE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_FOODITEM',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_FOODITEM] DEFAULT (0) FOR [FOODITEM]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_INITIAL_QTY',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_INITIAL_QTY] DEFAULT (0) FOR [INITIAL_QTY]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_AAC_PRICE',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_AAC_PRICE] DEFAULT (0) FOR [AAC_PRICE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.INVENTARIOPISO',
+      'DF_INVENTARIOPISO_NONEBC',
+      'ADD CONSTRAINT [DF_INVENTARIOPISO_NONEBC] DEFAULT (0) FOR [NONEBC]', Err);
+
+
   //=============== change OTC DataType to DECIMAL(18,2) ==========================
   FDQuery1.SQL.Text := 'SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '+ CHR(39) + 'OTC'+ chr(39) + ' AND ' +
      ' COLUMN_NAME = ' + chr(39) + 'PAGO_PLAN' +chr(39);
@@ -2550,76 +2690,296 @@ begin
     ExecSql('ALTER TABLE OTC ALTER COLUMN PS_136_UN DECIMAL(18,2)');
     ExecSql('ALTER TABLE OTC ALTER COLUMN PS_137_UP DECIMAL(18,2)');
   end;
-    DropConstraint('OTC','OTC');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PAGO_PLAN DEFAULT 0 FOR PAGO_PLAN');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_DEDUCIBLE DEFAULT 0 FOR DEDUCIBLE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_COSTOVENTA DEFAULT 0 FOR COSTOVENTA');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_INGREDIENT_COST_PAID DEFAULT 0 FOR INGREDIENT_COST_PAID');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_INCENTIVE_FEE_PAID DEFAULT 0 FOR INCENTIVE_FEE_PAID');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_DISPENSING_FEE_PAID DEFAULT 0 FOR DISPENSING_FEE_PAID');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_OTHER_AMOUNT_PAID DEFAULT 0 FOR OTHER_AMOUNT_PAID');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_AMOUNT_COPAY_COINS DEFAULT 0 FOR AMOUNT_COPAY_COINS');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PRECIOFACTURACION DEFAULT 0 FOR PRECIOFACTURACION');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_UNIT_PRICE DEFAULT 0 FOR UNIT_PRICE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PATIENTPAIDAMOUNT DEFAULT 0 FOR PATIENTPAIDAMOUNT');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_SALESTAX DEFAULT 0 FOR SALESTAX');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_OTHERAMOUNTCLAIMEDSUB DEFAULT 0 FOR OTHERAMOUNTCLAIMEDSUB');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_DISPENSINGFEE DEFAULT 0 FOR DISPENSINGFEE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_GROSSAMOUNTDUE DEFAULT 0 FOR GROSSAMOUNTDUE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_FLAT_SALES_TAXSUB DEFAULT 0 FOR FLAT_SALES_TAXSUB');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_MEDICAID_PAID_AMOUNT DEFAULT 0 FOR MEDICAID_PAID_AMOUNT');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_INCENTIVE_AMOUNT_SUB DEFAULT 0 FOR INCENTIVE_AMOUNT_SUB');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PERCENTAGE_SALES_TAX_SUB DEFAULT 0 FOR PERCENTAGE_SALES_TAX_SUB');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PERCENTAGE_SALES_TAX_RATE DEFAULT 0 FOR PERCENTAGE_SALES_TAX_RATE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PROF_SERV_FEE_SUB DEFAULT 0 FOR PROF_SERV_FEE_SUB');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_GANANCIA DEFAULT 0 FOR GANANCIA');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_FECHA_EXPIRACION DEFAULT getdate() FOR FECHAEXPIRACION');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_COBRADO DEFAULT 0 FOR COBRADO');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_FECHAOTC DEFAULT getdate() FOR FECHAOTC');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_NUMEROCLIENTE DEFAULT 0 FOR NUMEROCLIENTE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_RX_STATUS DEFAULT ' + chr(39) +  'N' + chr(39) + ' FOR RX_STATUS');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_DAYS_SUPPLY DEFAULT 0 FOR DAYS_SUPPLY');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PAGADA DEFAULT ' + chr(39) +  'F' + chr(39) + ' FOR PAGADA');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_TIME_RX DEFAULT getdate() FOR TIME_RX');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_NUMEROPLAN DEFAULT 0 FOR NUMEROPLAN');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_METRICDECIMALQUANTITY DEFAULT 0 FOR METRICDECIMALQUANTITY');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_NUMERO_AUTORIZACION DEFAULT ' + chr(39) +  'N/A' + chr(39) + ' FOR NUMERO_AUTORIZACION');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_SIGNATURE_LINK DEFAULT 1 FOR SIGNATURE_LINK');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_REFILL_NOTIFIED DEFAULT 0 FOR REFILL_NOTIFIED');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_CLAIM_STATUS DEFAULT 0 FOR CLAIM_STATUS');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_ADHERENCE DEFAULT 0 FOR ADHERENCE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_BILL_LATTER DEFAULT 0 FOR BILL_LATTER');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_ALCHEMY_PRODUCTID DEFAULT 0 FOR ALCHEMY_PRODUCTID');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_MARKETEDPRODUCTID DEFAULT 0 FOR MARKETEDPRODUCTID');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PDN_SENT DEFAULT 0 FOR PDN_SENT');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_REFILL_REQ_TRANSNO DEFAULT 0 FOR REFILL_REQ_TRANSNO');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_BASISOFCOST DEFAULT ' + chr(39) +  '01' + chr(39) + ' FOR BASISOFCOST');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_CLINICIDNUMBER DEFAULT 0 FOR CLINICIDNUMBER');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_LEVELOFSERVICE DEFAULT 0 FOR LEVELOFSERVICE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_RXDENIALOVERRIDE DEFAULT 0 FOR RXDENIALOVERRIDE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PRODUCTSERVIDQUAL DEFAULT ' + chr(39) +  '03' + chr(39) + ' FOR PRODUCTSERVIDQUAL');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_UNIT_DOSE_INDICATOR DEFAULT 1 FOR UNIT_DOSE_INDICATOR');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_UNIT_OF_MEASURE DEFAULT ' + chr(39) +  'EA' + chr(39) + ' FOR UNIT_OF_MEASURE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_SUB_CLARIF_CODE DEFAULT 0 FOR SUB_CLARIF_CODE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_OTHERCOVERAGECODE DEFAULT 0 FOR OTHERCOVERAGECODE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_SERVICEPROVIDQUALIFIER DEFAULT ' + chr(39) +  '07' + chr(39) + ' FOR SERVICEPROVIDQUALIFIER');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_PST_147_U7 DEFAULT 1 FOR PST_147_U7');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_SPECIAL_PACK_INDI_429_DT DEFAULT 0 FOR SPECIAL_PACK_INDI_429_DT');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_DAW DEFAULT 0 FOR DAW');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_SPIDN_454_EK DEFAULT 0 FOR SPIDN_454_EK');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_CODIGOREFILLNUEVO DEFAULT 0 FOR CODIGOREFILLNUEVO');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_RXNUMBERSRNQ DEFAULT 1 FOR RXNUMBERSRNQ');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_TRANSACTION_CODE DEFAULT ' + chr(39) +  'B1' + chr(39) + ' FOR TRANSACTION_CODE');
-    ExecSql('ALTER TABLE [OTC] ADD CONSTRAINT DF_OTC_QTY DEFAULT 0 FOR QTY');
-    try
-      ExecSql('ALTER TABLE OTC DROP COLUMN QTY10');
-      //ExecSql('ALTER TABLE OTC_HISTORY DROP COLUMN QTY10');
-    finally
-      //
-    end;
+  CommonRoutine.DropConstraint('OTC');
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PAGO_PLAN',
+    'ADD CONSTRAINT [DF_OTC_PAGO_PLAN] DEFAULT (0) FOR [PAGO_PLAN]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_DEDUCIBLE',
+    'ADD CONSTRAINT [DF_OTC_DEDUCIBLE] DEFAULT (0) FOR [DEDUCIBLE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_COSTOVENTA',
+    'ADD CONSTRAINT [DF_OTC_COSTOVENTA] DEFAULT (0) FOR [COSTOVENTA]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_INGREDIENT_COST_PAID',
+    'ADD CONSTRAINT [DF_OTC_INGREDIENT_COST_PAID] DEFAULT (0) FOR [INGREDIENT_COST_PAID]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_INCENTIVE_FEE_PAID',
+    'ADD CONSTRAINT [DF_OTC_INCENTIVE_FEE_PAID] DEFAULT (0) FOR [INCENTIVE_FEE_PAID]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_DISPENSING_FEE_PAID',
+    'ADD CONSTRAINT [DF_OTC_DISPENSING_FEE_PAID] DEFAULT (0) FOR [DISPENSING_FEE_PAID]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_OTHER_AMOUNT_PAID',
+    'ADD CONSTRAINT [DF_OTC_OTHER_AMOUNT_PAID] DEFAULT (0) FOR [OTHER_AMOUNT_PAID]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_AMOUNT_COPAY_COINS',
+    'ADD CONSTRAINT [DF_OTC_AMOUNT_COPAY_COINS] DEFAULT (0) FOR [AMOUNT_COPAY_COINS]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PRECIOFACTURACION',
+    'ADD CONSTRAINT [DF_OTC_PRECIOFACTURACION] DEFAULT (0) FOR [PRECIOFACTURACION]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_UNIT_PRICE',
+    'ADD CONSTRAINT [DF_OTC_UNIT_PRICE] DEFAULT (0) FOR [UNIT_PRICE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PATIENTPAIDAMOUNT',
+    'ADD CONSTRAINT [DF_OTC_PATIENTPAIDAMOUNT] DEFAULT (0) FOR [PATIENTPAIDAMOUNT]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_SALESTAX',
+    'ADD CONSTRAINT [DF_OTC_SALESTAX] DEFAULT (0) FOR [SALESTAX]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_OTHERAMOUNTCLAIMEDSUB',
+    'ADD CONSTRAINT [DF_OTC_OTHERAMOUNTCLAIMEDSUB] DEFAULT (0) FOR [OTHERAMOUNTCLAIMEDSUB]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_DISPENSINGFEE',
+    'ADD CONSTRAINT [DF_OTC_DISPENSINGFEE] DEFAULT (0) FOR [DISPENSINGFEE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_GROSSAMOUNTDUE',
+    'ADD CONSTRAINT [DF_OTC_GROSSAMOUNTDUE] DEFAULT (0) FOR [GROSSAMOUNTDUE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_FLAT_SALES_TAXSUB',
+    'ADD CONSTRAINT [DF_OTC_FLAT_SALES_TAXSUB] DEFAULT (0) FOR [FLAT_SALES_TAXSUB]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_MEDICAID_PAID_AMOUNT',
+    'ADD CONSTRAINT [DF_OTC_MEDICAID_PAID_AMOUNT] DEFAULT (0) FOR [MEDICAID_PAID_AMOUNT]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_INCENTIVE_AMOUNT_SUB',
+    'ADD CONSTRAINT [DF_OTC_INCENTIVE_AMOUNT_SUB] DEFAULT (0) FOR [INCENTIVE_AMOUNT_SUB]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PERCENTAGE_SALES_TAX_SUB',
+    'ADD CONSTRAINT [DF_OTC_PERCENTAGE_SALES_TAX_SUB] DEFAULT (0) FOR [PERCENTAGE_SALES_TAX_SUB]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PERCENTAGE_SALES_TAX_RATE',
+    'ADD CONSTRAINT [DF_OTC_PERCENTAGE_SALES_TAX_RATE] DEFAULT (0) FOR [PERCENTAGE_SALES_TAX_RATE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PROF_SERV_FEE_SUB',
+    'ADD CONSTRAINT [DF_OTC_PROF_SERV_FEE_SUB] DEFAULT (0) FOR [PROF_SERV_FEE_SUB]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_GANANCIA',
+    'ADD CONSTRAINT [DF_OTC_GANANCIA] DEFAULT (0) FOR [GANANCIA]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_FECHA_EXPIRACION',
+    'ADD CONSTRAINT [DF_OTC_FECHA_EXPIRACION] DEFAULT (GETDATE()) FOR [FECHAEXPIRACION]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_COBRADO',
+    'ADD CONSTRAINT [DF_OTC_COBRADO] DEFAULT (0) FOR [COBRADO]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_FECHAOTC',
+    'ADD CONSTRAINT [DF_OTC_FECHAOTC] DEFAULT (GETDATE()) FOR [FECHAOTC]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_NUMEROCLIENTE',
+    'ADD CONSTRAINT [DF_OTC_NUMEROCLIENTE] DEFAULT (0) FOR [NUMEROCLIENTE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_RX_STATUS',
+    'ADD CONSTRAINT [DF_OTC_RX_STATUS] DEFAULT (''N'') FOR [RX_STATUS]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_DAYS_SUPPLY',
+    'ADD CONSTRAINT [DF_OTC_DAYS_SUPPLY] DEFAULT (0) FOR [DAYS_SUPPLY]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PAGADA',
+    'ADD CONSTRAINT [DF_OTC_PAGADA] DEFAULT (''F'') FOR [PAGADA]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_TIME_RX',
+    'ADD CONSTRAINT [DF_OTC_TIME_RX] DEFAULT (GETDATE()) FOR [TIME_RX]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_NUMEROPLAN',
+    'ADD CONSTRAINT [DF_OTC_NUMEROPLAN] DEFAULT (0) FOR [NUMEROPLAN]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_METRICDECIMALQUANTITY',
+    'ADD CONSTRAINT [DF_OTC_METRICDECIMALQUANTITY] DEFAULT (0) FOR [METRICDECIMALQUANTITY]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_NUMERO_AUTORIZACION',
+    'ADD CONSTRAINT [DF_OTC_NUMERO_AUTORIZACION] DEFAULT (''N/A'') FOR [NUMERO_AUTORIZACION]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_SIGNATURE_LINK',
+    'ADD CONSTRAINT [DF_OTC_SIGNATURE_LINK] DEFAULT (1) FOR [SIGNATURE_LINK]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_REFILL_NOTIFIED',
+    'ADD CONSTRAINT [DF_OTC_REFILL_NOTIFIED] DEFAULT (0) FOR [REFILL_NOTIFIED]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_CLAIM_STATUS',
+    'ADD CONSTRAINT [DF_OTC_CLAIM_STATUS] DEFAULT (0) FOR [CLAIM_STATUS]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_ADHERENCE',
+    'ADD CONSTRAINT [DF_OTC_ADHERENCE] DEFAULT (0) FOR [ADHERENCE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_BILL_LATTER',
+    'ADD CONSTRAINT [DF_OTC_BILL_LATTER] DEFAULT (0) FOR [BILL_LATTER]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_ALCHEMY_PRODUCTID',
+    'ADD CONSTRAINT [DF_OTC_ALCHEMY_PRODUCTID] DEFAULT (0) FOR [ALCHEMY_PRODUCTID]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_MARKETEDPRODUCTID',
+    'ADD CONSTRAINT [DF_OTC_MARKETEDPRODUCTID] DEFAULT (0) FOR [MARKETEDPRODUCTID]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PDN_SENT',
+    'ADD CONSTRAINT [DF_OTC_PDN_SENT] DEFAULT (0) FOR [PDN_SENT]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_REFILL_REQ_TRANSNO',
+    'ADD CONSTRAINT [DF_OTC_REFILL_REQ_TRANSNO] DEFAULT (0) FOR [REFILL_REQ_TRANSNO]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_BASISOFCOST',
+    'ADD CONSTRAINT [DF_OTC_BASISOFCOST] DEFAULT (''01'') FOR [BASISOFCOST]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_CLINICIDNUMBER',
+    'ADD CONSTRAINT [DF_OTC_CLINICIDNUMBER] DEFAULT (0) FOR [CLINICIDNUMBER]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_LEVELOFSERVICE',
+    'ADD CONSTRAINT [DF_OTC_LEVELOFSERVICE] DEFAULT (0) FOR [LEVELOFSERVICE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_RXDENIALOVERRIDE',
+    'ADD CONSTRAINT [DF_OTC_RXDENIALOVERRIDE] DEFAULT (0) FOR [RXDENIALOVERRIDE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PRODUCTSERVIDQUAL',
+    'ADD CONSTRAINT [DF_OTC_PRODUCTSERVIDQUAL] DEFAULT (''03'') FOR [PRODUCTSERVIDQUAL]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_UNIT_DOSE_INDICATOR',
+    'ADD CONSTRAINT [DF_OTC_UNIT_DOSE_INDICATOR] DEFAULT (1) FOR [UNIT_DOSE_INDICATOR]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_UNIT_OF_MEASURE',
+    'ADD CONSTRAINT [DF_OTC_UNIT_OF_MEASURE] DEFAULT (''EA'') FOR [UNIT_OF_MEASURE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_SUB_CLARIF_CODE',
+    'ADD CONSTRAINT [DF_OTC_SUB_CLARIF_CODE] DEFAULT (0) FOR [SUB_CLARIF_CODE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_OTHERCOVERAGECODE',
+    'ADD CONSTRAINT [DF_OTC_OTHERCOVERAGECODE] DEFAULT (0) FOR [OTHERCOVERAGECODE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_SERVICEPROVIDQUALIFIER',
+    'ADD CONSTRAINT [DF_OTC_SERVICEPROVIDQUALIFIER] DEFAULT (''07'') FOR [SERVICEPROVIDQUALIFIER]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_PST_147_U7',
+    'ADD CONSTRAINT [DF_OTC_PST_147_U7] DEFAULT (1) FOR [PST_147_U7]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_SPECIAL_PACK_INDI_429_DT',
+    'ADD CONSTRAINT [DF_OTC_SPECIAL_PACK_INDI_429_DT] DEFAULT (0) FOR [SPECIAL_PACK_INDI_429_DT]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_DAW',
+    'ADD CONSTRAINT [DF_OTC_DAW] DEFAULT (0) FOR [DAW]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_SPIDN_454_EK',
+    'ADD CONSTRAINT [DF_OTC_SPIDN_454_EK] DEFAULT (0) FOR [SPIDN_454_EK]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_CODIGOREFILLNUEVO',
+    'ADD CONSTRAINT [DF_OTC_CODIGOREFILLNUEVO] DEFAULT (0) FOR [CODIGOREFILLNUEVO]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_RXNUMBERSRNQ',
+    'ADD CONSTRAINT [DF_OTC_RXNUMBERSRNQ] DEFAULT (1) FOR [RXNUMBERSRNQ]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_TRANSACTION_CODE',
+    'ADD CONSTRAINT [DF_OTC_TRANSACTION_CODE] DEFAULT (''B1'') FOR [TRANSACTION_CODE]', Err);
+
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.OTC',
+    'DF_OTC_QTY',
+    'ADD CONSTRAINT [DF_OTC_QTY] DEFAULT (0) FOR [QTY]', Err);
+
+  CommonRoutine.DropColumnIfExists('OTC', 'QTY10');
 
     //============= WILLCALL_STATUS Constrains (Default values) =================================================
-    ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_DATE_CREATED DEFAULT getdate() FOR DATE_CREATED');
+    CommonRoutine.DropConstraint('WILLCALL_STATUS');
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_DATE_CREATED',
+      'ADD CONSTRAINT [DF_WC_DATE_CREATED] DEFAULT (GETDATE()) FOR [DATE_CREATED]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_CUSTOMER_NUMBER',
+      'ADD CONSTRAINT [DF_WC_CUSTOMER_NUMBER] DEFAULT (0) FOR [CUSTOMER_NUMBER]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_REMINDER1',
+      'ADD CONSTRAINT [DF_WC_REMINDER1] DEFAULT (0) FOR [REMINDER1]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_REMINDER2',
+      'ADD CONSTRAINT [DF_WC_REMINDER2] DEFAULT (0) FOR [REMINDER2]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_REMINDER3',
+      'ADD CONSTRAINT [DF_WC_REMINDER3] DEFAULT (0) FOR [REMINDER3]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_STATUS',
+      'ADD CONSTRAINT [DF_WC_STATUS] DEFAULT (0) FOR [STATUS]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_NOTIFICATION_MODE1',
+      'ADD CONSTRAINT [DF_WC_NOTIFICATION_MODE1] DEFAULT (0) FOR [NOTIFICATION_MODE1]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_NOTIFICATION_MODE2',
+      'ADD CONSTRAINT [DF_WC_NOTIFICATION_MODE2] DEFAULT (0) FOR [NOTIFICATION_MODE2]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_NOTIFICATION_MODE1_EMAIL',
+      'ADD CONSTRAINT [DF_WC_NOTIFICATION_MODE1_EMAIL] DEFAULT ('''') FOR [NOTIFICATION_MODE1_EMAIL]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_NOTIFICATION_MODE2_TELEPHONE',
+      'ADD CONSTRAINT [DF_WC_NOTIFICATION_MODE2_TELEPHONE] DEFAULT ('''') FOR [NOTIFICATION_MODE2_TELEPHONE]', Err);
+
+    CommonRoutine.AddConstraintIfNotExistsSafe('dbo.WILLCALL_STATUS',
+      'DF_WC_NOTIFICATION0',
+      'ADD CONSTRAINT [DF_WC_NOTIFICATION0] DEFAULT (0) FOR [NOTIFICATION0]', Err);
+    {ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_DATE_CREATED DEFAULT getdate() FOR DATE_CREATED');
     ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_CUSTOMER_NUMBER DEFAULT 0 FOR CUSTOMER_NUMBER');
     ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_REMINDER1 DEFAULT 0 FOR REMINDER1');
     ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_REMINDER2 DEFAULT 0 FOR REMINDER2');
@@ -2629,7 +2989,7 @@ begin
     ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_NOTIFICATION_MODE2 DEFAULT 0 FOR NOTIFICATION_MODE2');
     ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_NOTIFICATION_MODE1_EMAIL DEFAULT ' +chr(39) + chr(39)+ ' FOR NOTIFICATION_MODE1_EMAIL');
     ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_NOTIFICATION_MODE2_TELEPHONE DEFAULT ' +chr(39) + chr(39)+ ' FOR NOTIFICATION_MODE2_TELEPHONE');
-    ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_NOTIFICATION0 DEFAULT 0 FOR NOTIFICATION0');
+    ExecSql('ALTER TABLE [WILLCALL_STATUS] ADD CONSTRAINT DF_WC_NOTIFICATION0 DEFAULT 0 FOR NOTIFICATION0');}
     //======================================================================================================================
 
 
@@ -2821,7 +3181,7 @@ begin
 
 
 
-  //=============== change ORDER_HEADER DataType to datetime ==========================
+  {//=============== change ORDER_HEADER DataType to datetime ==========================
   FDQuery1.SQL.Text := 'SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '+ CHR(39) + 'ORDER_HEADER'+ chr(39) + ' AND ' +
      ' COLUMN_NAME = ' + chr(39) + 'TOTAL' +chr(39);
   FDQuery1.Open;
@@ -2903,7 +3263,7 @@ begin
     ExecSql('ALTER TABLE TRANSFER_DETAIL ALTER COLUMN TOTAL_VALUE DECIMAL(18,2)');
     ExecSql('ALTER TABLE TRANSFER_DETAIL ALTER COLUMN PRECIO_WIC DECIMAL(18,2)');
   end;
-
+  }
 
 
   CreateFields('Surescripts', 'Qty', 'decimal(18,2) default(0) NULL');
@@ -2966,8 +3326,8 @@ begin
   ExecSql('DELETE FROM COB_E WHERE NOTRANS = 0');
 
   ExecSql('UPDATE INVENTARIOPISO SET EDITAR_PRECIO = 1 WHERE EDITAR_PRECIO IS NULL');
-  ExecSql('ALTER TABLE TransactionHeader_TEMP DROP COLUMN AMOUNT_TENDERED');
-  ExecSql('ALTER TABLE TransactionHeader DROP COLUMN AMOUNT_TENDERED');
+  //ExecSql('ALTER TABLE TransactionHeader_TEMP DROP COLUMN AMOUNT_TENDERED');
+  //ExecSql('ALTER TABLE TransactionHeader DROP COLUMN AMOUNT_TENDERED');
   //============== deltete transactionnumber from Prescriptions ============================
    Try
    SQLStr := 'IF EXISTS(SELECT TOP 1 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE [TABLE_NAME] = ' + chr(39) + 'Prescriptions' + chr(39) +
@@ -2990,8 +3350,8 @@ begin
    QBorrarNonMatchedNDC.SQL.Text := SQLStr;
    QBorrarNonMatchedNDC.ExecSQL;
 
-   ExecSql('DROP INDEX [Prescription_NumeroReceta] ON [dbo].[PRESCRIPTIONS]');
-   ExecSql('DROP INDEX [NumeroReceta] ON [dbo].[PRESCRIPTIONS]');
+   //ExecSql('DROP INDEX [Prescription_NumeroReceta] ON [dbo].[PRESCRIPTIONS]');
+   //ExecSql('DROP INDEX [NumeroReceta] ON [dbo].[PRESCRIPTIONS]');
 
 
    SQLStr := 'ALTER TABLE Prescriptions ALTER COLUMN NUMERORECETA BIGINT NOT NULL';
@@ -3166,28 +3526,19 @@ begin
 
 
 
-  Try
-  SQLStr := 'ALTER TABLE [dbo].[APPRISS_LOG] ADD  CONSTRAINT [DF_APPRISS_LOG_DATE]  DEFAULT (getdate()) FOR [DATE]';
-  QBorrarNonMatchedNDC.SQL.Text := SQLStr;
-  QBorrarNonMatchedNDC.ExecSQL;
-  Except
-    //
-  End;
+   CommonRoutine.DropConstraint('APPRISS_LOG');
+   CommonRoutine.AddConstraintIfNotExistsSafe('dbo.APPRISS_LOG',
+    'DF_APPRISS_LOG_DATE',
+    'ADD CONSTRAINT [DF_APPRISS_LOG_DATE] DEFAULT (GETDATE()) FOR [DATE]', Err);
 
 
-{  ExecSql('ALTER TABLE [dbo].[Surescripts] ADD  CONSTRAINT [DF__Surescrip__Patie__01F99BF9]  DEFAULT ((0)) FOR [PatientID];');
-  ExecSql('ALTER TABLE [dbo].[Surescripts] ADD  CONSTRAINT [DF__Surescrip__Presc__02EDC032]  DEFAULT ((0)) FOR [PrescriberID];');
-  ExecSql('ALTER TABLE [dbo].[Surescripts] ADD  CONSTRAINT [DF__Surescrip__Medic__03E1E46B]  DEFAULT ((0)) FOR [MedicationID];');
-  ExecSql('ALTER TABLE [dbo].[Surescripts] ADD  CONSTRAINT [DF_Surescripts_Rx_Status]  DEFAULT ((0)) FOR [Rx_Status];');
-  ExecSql('ALTER TABLE [dbo].[Surescripts] ADD  CONSTRAINT [DF_Surescripts_RxReferenceNumber]  DEFAULT ((0)) FOR [RxReferenceNumber];');
-}
-  ExecSql('ALTER TABLE OTC ADD CONSTRAINT DF_OTC_SIGNATURE_LINK DEFAULT 1 FOR SIGNATURE_LINK;');
-  ExecSql('ALTER TABLE OTC ADD CONSTRAINT DF_OTC_TIME_RX GETDATE() FOR TIME_RX;');
+
+
+
   CreateFields('PACIENTES', 'SIGNATURE_RX_LINK', 'INT NULL');
   CreateFields('INVENTARIOPISO', 'NOTE', 'TEXT NULL');
   CreateFields('BOTONES', 'BUTTON_NAME', 'VARCHAR(20) NULL');
-  //CreateFields('TRANSACTIONHEADER_TEMP', 'TABS_ID', 'INT NULL');
-  //CreateFields('TRANSACTIONHEADER', 'TABS_ID', 'INT NULL');
+
   CreateFields('TRANSACTIONDETAIL_TEMP', 'TERMINO', 'NCHAR(15) NULL');
   CreateFields('TRANSACTIONDETAIL', 'TERMINO', 'NCHAR(15) NULL');
   CreateFields('TRANSACTIONDETAIL_TEMP', 'MAIN_COURSE', 'BIT DEFAULT 0 NULL');
@@ -3216,11 +3567,8 @@ begin
   end;
   CreateFields('PATPLAN', 'PLANESMEDICOSNO', 'INT NULL');
   CreateFields('PATPLAN', 'COPAY', 'BIT NULL');
-  ExecSql('ALTER TABLE PATPLAN DROP COLUMN SCHEMA1');
 
-
-  //ExecSql('ALTER TABLE PATPLAN DROP COLUMN ACTIVO');
-  //ExecSql('ALTER TABLE PATPLAN DROP COLUMN PLAN_PRIMARIO');
+  CommonRoutine.DropColumnIfExists('PATPLAN', 'SCHEMA1');
   //===========================================================================
   CreateFields('OTC', 'PLANESMEDICOSNO', 'INT NULL');
   CreateFields('PRIOR_AUTH', 'OTCNUMBER', 'INT NULL');
@@ -3301,7 +3649,7 @@ begin
 
 
   CreateFields('CREDITDEBITSETUP', 'Surescripts_Directories', 'VARCHAR(500) NULL');
-  ExecSql('Update CREDITDEBITSETUP set Surescripts_Directories = ' + '' + '  where Surescripts_Directories IS NULL');
+  ExecSql('Update CREDITDEBITSETUP set Surescripts_Directories = ' + chr(39) + chr(39) + ' where Surescripts_Directories IS NULL');
   CreateFields('CREDITDEBITSETUP', 'GSDD_RequirePharmacistIntervention', 'bit null');
   ExecSql('Update CREDITDEBITSETUP set GSDD_RequirePharmacistIntervention = 0 where GSDD_RequirePharmacistIntervention IS NULL');
   CreateFields('CREDITDEBITSETUP', 'TS_PRINT_COPIES', 'bit null');
@@ -3414,7 +3762,7 @@ begin
   CreateFields('CREDITDEBITSETUP', 'OVERRIDE_CONTROLLED_RX', 'bit null');
   ExecSql('UPDATE CREDITDEBITSETUP SET OVERRIDE_CONTROLLED_RX = 1 WHERE OVERRIDE_CONTROLLED_RX IS NULL');
   CreateFields('CREDITDEBITSETUP', 'ENFORCE_MARKET_STAUS', 'bit null');
-  ExecSql('UPDATE CREDITDEBITSETUP SET SHOW_MARKET_STAUS = 0 WHERE SHOW_MARKET_STAUS IS NULL');
+  //ExecSql('UPDATE CREDITDEBITSETUP SET SHOW_MARKET_STAUS = 0 WHERE SHOW_MARKET_STAUS IS NULL');
   CreateFields('CREDITDEBITSETUP', 'IMAGE_DATABASE_IP', 'nchar(30) null');
   CreateFields('CREDITDEBITSETUP', 'SURESCRIPTS_MAILBOX', 'bit NULL');
   ExecSql('UPDATE CREDITDEBITSETUP SET SURESCRIPTS_MAILBOX = 0 WHERE SURESCRIPTS_MAILBOX IS NULL');
@@ -3505,14 +3853,20 @@ begin
   QBorrarNonMatchedNDC.SQL.Text := SQLStr;
   QBorrarNonMatchedNDC.ExecSQL;
   //===============================================================================
+  CommonRoutine.DropConstraint('PRESCRIPTIONS');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
+    'DF_OTC_ACTIVE',
+    'ADD CONSTRAINT [DF_OTC_ACTIVE] DEFAULT (0) FOR [ACTIVE]', Err);
   CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
      'DF_RX_RXORIGINCODE',
      'ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE', Err);
-  //ExecQry('ALTER TABLE PRESCRIPTIONS ADD CONSTRAINT DF_RX_DIASSUPLIDOS DEFAULT 0 FOR DIASSUPLIDOS');
-  //ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE');
-  ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_PRESCRIBERIDQUALIFIER DEFAULT '+ CHR(39) +'01' + CHR(39) + ' FOR PRESCRIBERIDQUALIFIER');
-  ExecQry('ALTER TABLE  PRESCRIPTIONS ADD CONSTRAINT DF_RX_CANTIDADRECETADA DEFAULT 0 FOR CANTIDADRECETADA');
-  ExecQry('ALTER TABLE dbo.OTC ADD CONSTRAINT DF_OTC_IMPRIMIR DEFAULT 1 FOR IMPRIMIR');
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
+     'DF_RX_PRESCRIBERIDQUALIFIER',
+     'ADD CONSTRAINT DF_RX_PRESCRIBERIDQUALIFIER DEFAULT ('+ '01' +') FOR PRESCRIBERIDQUALIFIER', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
+     'DF_RX_CANTIDADRECETADA',
+     'ADD CONSTRAINT DF_RX_CANTIDADRECETADA DEFAULT 0 FOR CANTIDADRECETADA', Err);
+  //===============================================================================
 
   FDQuery1.SQL.Text := 'SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '+ CHR(39) + 'INVENTARIOPISO'+ chr(39) + ' AND ' +
      ' COLUMN_NAME = ' + chr(39) + 'QTYINVENTARIO' +chr(39);
@@ -3732,7 +4086,8 @@ procedure TDMModifyDatabase.DropAll;
 begin
   FrmMain.PageControlInfo.ActivePageIndex := 1;
   FrmMain.Memo2.Lines.Add('Dropping all!');
-  ExecSql('alter table PRESCRIPTIONS DROP COLUMN PROXIMOREFILL');
+  //ExecSql('alter table PRESCRIPTIONS DROP COLUMN PROXIMOREFILL');
+  CommonRoutine.DropColumnIfExists('PRESCRIPTIONS', 'PROXIMOREFILL');
   DropProgrammableObjectsAndIndexes;
   ExecQryImages('DROP PROCEDURE INSERT_SCANNED_RX');
   ExecQryImages('DROP PROCEDURE BACKUPDATABASE');
@@ -4056,6 +4411,7 @@ begin
  //============================ Create Prescription and OTC History Tables ===================
   ShowMessage('Done erasing fields!');
 end;
+
 function TDMModifyDatabase.ExecQryImages(SQLstr: String): Boolean;
 begin
   Try
@@ -4066,12 +4422,15 @@ begin
   End;
 end;
 function TDMModifyDatabase.ExecQry(SQLstr: String): Boolean;
+var
+  SP: string;
 begin
   Try
-  QBorrarNonMatchedNDC.SQL.Text := SQLStr;
-  QBorrarNonMatchedNDC.ExecSQL;
+    SP := CommonRoutine.ExtractAfterDbo(qryNewSP.SQL.Text);
+    qryNewSP.SQL.Text := SQLStr;
+    qryNewSP.ExecSQL;
   Except
-    FrmMain.Memo2.Lines.Add('Error executing: ' + QBorrarNonMatchedNDC.SQL.Text);
+    FrmMain.MemoErrors.Lines.Add('Error executing: ' + SP); // qryNewSP.SQL.Text);
   End;
 end;
 
@@ -4184,19 +4543,6 @@ begin
   SuccessfullyCreated('FIX_CONTROLADO');
 end;
 
-function TDMModifyDatabase.DropConstraint(Token, TableName: String): String;
-begin
-  cdsObjects.Close;
-  cdsObjects.CommandText := 'SELECT NAME FROM sys.objects WHERE name LIKE ' + chr(39) + '%' + Token + '%' + chr(39) + ' AND type = ' + chr(39) + 'D' + chr(39);
-  cdsObjects.Open;
-  cdsObjects.First;
-  While not cdsObjects.Eof do
-  begin
-     DMModifyDatabase.ExecSql('ALTER TABLE ' + TableName + ' DROP CONSTRAINT ' + Trim(cdsObjectsNAME.Value));
-     cdsObjects.Next;
-  end;
-  Result := '';
-end;
 
 procedure TDMModifyDatabase.GETNEWHEADERAfterExecute(DataSet: TFDDataSet);
 begin
@@ -4684,6 +5030,12 @@ begin
   FrmMain.MemoErrors.Lines.Add(qryCreate.SQL.Text);
 end;
 
+procedure TDMModifyDatabase.qryNewSPError(ASender, AInitiator: TObject;
+  var AException: Exception);
+begin
+    FrmMain.MemoErrors.Lines.Add(qryNewSP.SQL.Text);
+end;
+
 procedure TDMModifyDatabase.QUpdateOTCAfterExecute(DataSet: TFDDataSet);
 begin
   SuccessfullyCreated('QUpdateOTC');
@@ -4932,8 +5284,12 @@ begin
   ExecQry(D0_SEG08_DUR_schema.SQL.Text);
   ExecQry(D0_SEG10_Compound_schema.SQL.Text);
   ExecQry(D0_SEG11_Pricing_schema.sql.Text);
-  ExecQryCreate(D0_BuildTransFile_schema.sql.Text);
-  //======================================================
+  ExecQry(D0_BuildTransFile_schema.sql.Text);
+  //================== Same active ingredients ============
+  ExecQry(UpsertNdc9Ingredient.SQL.Text);
+  ExecQry(WC_CHECK_ACTIVE_DUPLICATE_INGREDIENTS.SQL.Text);
+  ExecQry(WC_GET_MISSING_ACTIVE_NDC9_MAP.SQL.Text);
+  //=======================================================
   ExecQry(WORKSTATION_PRINTER_MAP.SQL.Text);
   ExecQry(GET_INVENTORIYINFO.SQL.Text);
   ExecQry(PATIENT_LOOKUP.SQL.Text);
@@ -4946,208 +5302,209 @@ begin
   ExecSql2('WC_INSERT_NEWPRODUCT_BAG', WC_INSERT_NEWPRODUCT_BAG.SQL.Text);
   ExecQry(SEARCH_GLOBAL.SQL.Text);
   ExecQry(VALIDATE_OTC_BATCH_INTEGRITY.SQL.Text);
-  ExecQry(fn_GetBatchClinicalSignatureHash.SQL.Text);
+  //ExecQry(fn_GetBatchClinicalSignatureHash.SQL.Text);
   ExecQry(GET_PACIENTE_BY_ID.SQL.Text);
   ExecQry(GET_ACTIVE_PATIENT_NDCS.SQL.Text);
   ExecQry(SEARCH_PACIENTES.SQL.Text);
   ExecQry(RX_QUEUE_ADD_NEWRX.SQL.Text);
   ExecQry(RX_INSERT_RX_QUEUE.SQL.Text);
-  ExecQry(EM_UPDATEINV.SQL.Text);
-  ExecQryCreate(OTC_INVENTORY_CONTROL.SQL.Text);
-  ExecQryCreate(D0_COB_segment_schema.SQL.Text);
-  ExecQryCreate(D0_DUR_Segment_schema.SQL.Text);
-  ExecQryCreate(D0_Workers_compensation_schema.SQL.Text);
-  ExecQryCreate(INVENTORY_ERX.SQL.Text);
-  ExecQryCreate(ADD_EDIT_PATINSURANCE.SQL.Text);
-  ExecQryCreate(ADD_EDIT_PACIENTES.SQL.Text);
-  ExecQryCreate(D0_GetFloatCharacter.SQL.Text);
-  ExecQryCreate(D0_COB_segment.SQL.Text);
-  ExecQryCreate(D0_DUR_Segment.SQL.Text);
-  ExecQryCreate(D0_Workers_compensation.SQL.Text);
-  ExecQryCreate(D0_Compound_segment.SQL.Text);
-  ExecQryCreate(D0_Clinical_Segment.SQL.Text);
-  ExecQryCreate(D0_BuidTransFile.SQL.Text);
-  ExecQryCreate(RX_REFILL_NOTIFIED.SQL.Text);
-  ExecQryCreate(CAMBIARACASH.SQL.Text);
-  ExecQryCreate(INSERT_NOTIFICATION_LOG.SQL.Text);
-  ExecQryCreate(inout_report.SQL.Text);
-  ExecQryCreate(FN_RX_NEXTREFILL.SQL.Text);
+  //ExecQry(EM_UPDATEINV.SQL.Text);
+  ExecQry(OTC_INVENTORY_CONTROL.SQL.Text);
+  ExecQry(D0_COB_segment_schema.SQL.Text);
+  ExecQry(D0_DUR_Segment_schema.SQL.Text);
+  ExecQry(D0_Workers_compensation_schema.SQL.Text);
+  ExecQry(INVENTORY_ERX.SQL.Text);
+  ExecQry(ADD_EDIT_PATINSURANCE.SQL.Text);
+  ExecQry(ADD_EDIT_PACIENTES.SQL.Text);
+  ExecQry(D0_GetFloatCharacter.SQL.Text);
+  ExecQry(D0_COB_segment.SQL.Text);
+  ExecQry(D0_DUR_Segment.SQL.Text);
+  ExecQry(D0_Workers_compensation.SQL.Text);
+  ExecQry(D0_Compound_segment.SQL.Text);
+  ExecQry(D0_Clinical_Segment.SQL.Text);
+  ExecQry(D0_BuidTransFile.SQL.Text);
+  ExecQry(RX_REFILL_NOTIFIED.SQL.Text);
+  ExecQry(CAMBIARACASH.SQL.Text);
+  ExecQry(INSERT_NOTIFICATION_LOG.SQL.Text);
+  ExecQry(inout_report.SQL.Text);
+  ExecQry(FN_RX_NEXTREFILL.SQL.Text);
   ExecSql('ALTER TABLE [dbo].[PRESCRIPTIONS] ADD [PROXIMOREFILL] AS dbo.FN_RX_NEXTREFILL([NUMERORECETA])');
-  ExecQryCreate(RX_AMOUNTDUE.SQL.Text);
-  ExecQryCreate(RX_AMOUNT_DUE.SQL.Text);
-  ExecQryCreate(MERGE_PATIENT_DATA.SQL.Text);
-  ExecQryCreate(QUICK_RX_INSERT.SQL.Text);
-  ExecQryCreate(QUICK_RX_VIEW.SQL.Text);
-  ExecQryCreate(QUICK_RX_ADD_NEWRX.SQL.Text);
-  ExecQryCreate(RX_CHANGE_PATIENT_PLAN.SQL.Text);
-  ExecQryCreate(INI_VALUES.SQL.Text);
-  ExecQryCreate(INSERT_ESIGNATURE_STAMP.SQL.Text);
-  ExecQryCreate(INSERT_PICKUP.SQL.Text);
-  ExecQryCreate(INSERT_ESIGNATURE_AI.SQL.Text);
-  ExecQryCreate(INSERT_ESIGNATURE_PICTURE_AI.SQL.Text);
-  ExecQryCreate(SIGNATURE_LINK.SQL.Text);
-  ExecQryCreate(BOTONES_MIDIFIERS.SQL.Text);
-  ExecQryCreate(TRIPLE_S.SQL.Text);
-  ExecQryCreate(WC_BAGPICKUP_UPDATE.SQL.Text);
-  ExecQryCreate(PWRD_ISAUTHORIZED.SQL.Text);
-  ExecQryCreate(ISAUTHORIZED.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_RXPAID2.SQL.Text);
-  ExecQryCreate(ADD_EDIT_USERS_RX.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_DELETE_IP_CLIENTLIST.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_EXSIST.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_INSERT_LOG.SQL.Text);
-  ExecQryCreate(ADD_EDIT_CONTROLED_LOG.SQL.Text);
-  ExecQryCreate(ADD_EDIT_REFIL_QUERY.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_ADD_NEWRX.SQL.Text);
-  ExecQryCreate(INSERT_EDIT_PRODUCT_IMAGE.SQL.Text);
-  ExecQryCreate(INSERT_PRINT_QUERIES.SQL.Text);
-  ExecQryCreate(NEXT_ID.SQL.Text);
-  ExecQryCreate(RX_RECALL_EPRESCRIBE_FROMHISTORY.SQL.Text);
-  ExecQryCreate(INSERT_OTC_MEZCAS.SQL.Text);
-  ExecQryCreate(DELETE_OTC.SQL.Text);
-  ExecQryCreate(INSERT_SCANNED_DOC.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_TRANS_TYPE.SQL.Text);
-  ExecQryCreate(WF_UPDATE.SQL.Text);
-  ExecQryCreate(GET_PRICE_TABLE_VALUE.SQL.Text);
-  ExecQryCreate(RX_CALCULATE_PRICE.SQL.Text);
-  ExecQryCreate(EXPORT_TO_RXTEMP1.SQL.Text);
-  ExecQryCreate(RX_COMPOUND_VALUES.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_UPDATE_RESPONSE.SQL.Text);
-  ExecQryCreate(SurescriptsRX_LABEL_INSERT_EDIT.SQL.Text);
-  ExecQryCreate(RX_UPDATE_REFILL_QUERY.SQL.Text);
-  ExecQryCreate(RX_TERMINAR_RECETA.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_UPDATE_RXSTATUS.SQL.Text);
-  ExecQryCreate(SURESCRIPT_INSERT.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_RX_RENEW.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_UPDATE_SURESCRIPTS.SQL.Text);
-  ExecQryCreate(SURESCRIPTS_INSERT_IP_CLIENTLIST.SQL.Text);
-  ExecQryCreate(UPDATE_WORKERS_COMP_SEGMENT.SQL.Text);
-  ExecQryCreate(INSERT_DIRECTORY.SQL.Text);
-  ExecQryCreate(DOCTOR_CREATE_UPDATE61.SQL.Text);
-  ExecQryCreate(ADD_EDIT_PRESCRIBER.SQL.Text);
-  ExecQryCreate(PATIENT_HIPPA_ORIENTED.SQL.Text);
-  ExecQryCreate(PRICE_UPDATE.SQL.Text);
-  ExecQryCreate(INSERT_PASSWORD_LOG.SQL.Text);
-  ExecQryCreate(CHANGE_PRESCRIBER.SQL.Text);
-  ExecQryCreate(UPDATE_PATPLAN_PLANNUMBER.SQL.Text);
-  ExecQryCreate(CHANGE_PATIENT.SQL.Text);
-  ExecQryCreate(INSERT_LOG.SQL.Text);
-  ExecQryCreate(NEXT_APPRISS_TN.SQL.Text);
-  ExecQryCreate(INSERT_DISPPILL.SQL.Text);
-  ExecQryCreate(INSERT_CASH_PLAN_EMPTY.SQL.Text);
-  ExecQryCreate(INSERT_APPRISS.SQL.Text);
-  ExecQryCreate(UPDATE_PATIENT_NOTIFICATIONS.SQL.Text);
-  ExecQryCreate(DELETE_SIGNATURE.SQL.Text);
-  ExecQryCreate(EDIT_INVENTORY.SQL.Text);
-  ExecQryCreate(CLEAN_OTC.SQL.Text);
-  ExecQryCreate(INSERT_OVER_TC.SQL.Text);
-  ExecQryCreate(INSERT_MEZLCA.SQL.Text);
-  ExecQryCreate(INVENTORY_CONTROL.SQL.Text);
-  ExecQryCreate(UPDATE_CLAIM_SEGMENT.SQL.Text);
-  ExecQryCreate(UPDATE_PRICING_SEGMENT.SQL.Text);
-  ExecQryCreate(PATIENT_SEARCH.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_QTY.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_BATCH.SQL.Text);
-  ExecQryCreate(INSERT_PRESCRIPTIONS.SQL.Text);
-  ExecQryCreate(CANCEL_NEW_RX.SQL.Text);
-  ExecQryCreate(CANCEL_NEW_RX_NORX.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_HEALTHPLAN.SQL.Text);
-  ExecQryCreate(CAMBIAR_MEDICAMENTO.SQL.Text);
-  ExecQryCreate(UPDATE_RX_SCANED_RXLINK.SQL.Text);
-  ExecQryCreate(UPDATE_PRESCRIPTION.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_RXPAID.SQL.Text);
-  ExecQryCreate(CALCRXDISPONIBLE.SQL.Text);
-  ExecQryCreate(INSERT_CLAIM.SQL.Text);
-  ExecQryCreate(BACKUPDATABASE.SQL.Text);
-  ExecQryCreate(DELETE_PRINT_QUERIES.SQL.Text);
-  ExecQryCreate(DELETE_RXTEMP1NORX.SQL.Text);
-  ExecQryCreate(DELETE_SCANED_Q.SQL.Text);
+  //CommonRoutine.DropColumnIfExists('PRESCRIPTIONS', )
+  ExecQry(RX_AMOUNTDUE.SQL.Text);
+  ExecQry(RX_AMOUNT_DUE.SQL.Text);
+  ExecQry(MERGE_PATIENT_DATA.SQL.Text);
+  ExecQry(QUICK_RX_INSERT.SQL.Text);
+  ExecQry(QUICK_RX_VIEW.SQL.Text);
+  ExecQry(QUICK_RX_ADD_NEWRX.SQL.Text);
+  ExecQry(RX_CHANGE_PATIENT_PLAN.SQL.Text);
+  ExecQry(INI_VALUES.SQL.Text);
+  ExecQry(INSERT_ESIGNATURE_STAMP.SQL.Text);
+  ExecQry(INSERT_PICKUP.SQL.Text);
+  ExecQry(INSERT_ESIGNATURE_AI.SQL.Text);
+  ExecQry(INSERT_ESIGNATURE_PICTURE_AI.SQL.Text);
+  ExecQry(SIGNATURE_LINK.SQL.Text);
+  ExecQry(BOTONES_MIDIFIERS.SQL.Text);
+  ExecQry(TRIPLE_S.SQL.Text);
+  ExecQry(WC_BAGPICKUP_UPDATE.SQL.Text);
+  ExecQry(PWRD_ISAUTHORIZED.SQL.Text);
+  ExecQry(ISAUTHORIZED.SQL.Text);
+  ExecQry(UPDATE_OTC_RXPAID2.SQL.Text);
+  ExecQry(ADD_EDIT_USERS_RX.SQL.Text);
+  ExecQry(SURESCRIPTS_DELETE_IP_CLIENTLIST.SQL.Text);
+  ExecQry(SURESCRIPTS_EXSIST.SQL.Text);
+  ExecQry(SURESCRIPTS_INSERT_LOG.SQL.Text);
+  ExecQry(ADD_EDIT_CONTROLED_LOG.SQL.Text);
+  ExecQry(ADD_EDIT_REFIL_QUERY.SQL.Text);
+  ExecQry(SURESCRIPTS_ADD_NEWRX.SQL.Text);
+  ExecQry(INSERT_EDIT_PRODUCT_IMAGE.SQL.Text);
+  ExecQry(INSERT_PRINT_QUERIES.SQL.Text);
+  ExecQry(NEXT_ID.SQL.Text);
+  ExecQry(RX_RECALL_EPRESCRIBE_FROMHISTORY.SQL.Text);
+  ExecQry(INSERT_OTC_MEZCAS.SQL.Text);
+  ExecQry(DELETE_OTC.SQL.Text);
+  ExecQry(INSERT_SCANNED_DOC.SQL.Text);
+  ExecQry(SURESCRIPTS_TRANS_TYPE.SQL.Text);
+  ExecQry(WF_UPDATE.SQL.Text);
+  ExecQry(GET_PRICE_TABLE_VALUE.SQL.Text);
+  ExecQry(RX_CALCULATE_PRICE.SQL.Text);
+  ExecQry(EXPORT_TO_RXTEMP1.SQL.Text);
+  ExecQry(RX_COMPOUND_VALUES.SQL.Text);
+  ExecQry(SURESCRIPTS_UPDATE_RESPONSE.SQL.Text);
+  ExecQry(SurescriptsRX_LABEL_INSERT_EDIT.SQL.Text);
+  ExecQry(RX_UPDATE_REFILL_QUERY.SQL.Text);
+  ExecQry(RX_TERMINAR_RECETA.SQL.Text);
+  ExecQry(SURESCRIPTS_UPDATE_RXSTATUS.SQL.Text);
+  ExecQry(SURESCRIPT_INSERT.SQL.Text);
+  ExecQry(SURESCRIPTS_RX_RENEW.SQL.Text);
+  ExecQry(SURESCRIPTS_UPDATE_SURESCRIPTS.SQL.Text);
+  ExecQry(SURESCRIPTS_INSERT_IP_CLIENTLIST.SQL.Text);
+  ExecQry(UPDATE_WORKERS_COMP_SEGMENT.SQL.Text);
+  ExecQry(INSERT_DIRECTORY.SQL.Text);
+  ExecQry(DOCTOR_CREATE_UPDATE61.SQL.Text);
+  ExecQry(ADD_EDIT_PRESCRIBER.SQL.Text);
+  ExecQry(PATIENT_HIPPA_ORIENTED.SQL.Text);
+  ExecQry(PRICE_UPDATE.SQL.Text);
+  ExecQry(INSERT_PASSWORD_LOG.SQL.Text);
+  ExecQry(CHANGE_PRESCRIBER.SQL.Text);
+  ExecQry(UPDATE_PATPLAN_PLANNUMBER.SQL.Text);
+  ExecQry(CHANGE_PATIENT.SQL.Text);
+  ExecQry(INSERT_LOG.SQL.Text);
+  ExecQry(NEXT_APPRISS_TN.SQL.Text);
+  ExecQry(INSERT_DISPPILL.SQL.Text);
+  ExecQry(INSERT_CASH_PLAN_EMPTY.SQL.Text);
+  ExecQry(INSERT_APPRISS.SQL.Text);
+  ExecQry(UPDATE_PATIENT_NOTIFICATIONS.SQL.Text);
+  ExecQry(DELETE_SIGNATURE.SQL.Text);
+  ExecQry(EDIT_INVENTORY.SQL.Text);
+  ExecQry(CLEAN_OTC.SQL.Text);
+  ExecQry(INSERT_OVER_TC.SQL.Text);
+  ExecQry(INSERT_MEZLCA.SQL.Text);
+  ExecQry(INVENTORY_CONTROL.SQL.Text);
+  ExecQry(UPDATE_CLAIM_SEGMENT.SQL.Text);
+  ExecQry(UPDATE_PRICING_SEGMENT.SQL.Text);
+  ExecQry(PATIENT_SEARCH.SQL.Text);
+  ExecQry(UPDATE_OTC_QTY.SQL.Text);
+  ExecQry(UPDATE_OTC_BATCH.SQL.Text);
+  ExecQry(INSERT_PRESCRIPTIONS.SQL.Text);
+  ExecQry(CANCEL_NEW_RX.SQL.Text);
+  ExecQry(CANCEL_NEW_RX_NORX.SQL.Text);
+  ExecQry(UPDATE_OTC_HEALTHPLAN.SQL.Text);
+  ExecQry(CAMBIAR_MEDICAMENTO.SQL.Text);
+  ExecQry(UPDATE_RX_SCANED_RXLINK.SQL.Text);
+  ExecQry(UPDATE_PRESCRIPTION.SQL.Text);
+  ExecQry(UPDATE_OTC_RXPAID.SQL.Text);
+  ExecQry(CALCRXDISPONIBLE.SQL.Text);
+  ExecQry(INSERT_CLAIM.SQL.Text);
+  ExecQry(BACKUPDATABASE.SQL.Text);
+  ExecQry(DELETE_PRINT_QUERIES.SQL.Text);
+  ExecQry(DELETE_RXTEMP1NORX.SQL.Text);
+  ExecQry(DELETE_SCANED_Q.SQL.Text);
 
-  ExecQryCreate(DEUDA.SQL.Text);
-  ExecQryCreate(INSERT_OTC.SQL.Text);
-  ExecQryCreate(INSERT_PRINT_Q.SQL.Text);
-  ExecQryCreate(INSERT_RESPONSE.SQL.Text);
-  ExecQryCreate(INSERTPATPLAN.SQL.Text);
-  ExecQryCreate(LAST_IDENTITY.SQL.Text);
-  ExecQryCreate(NEXTBARCODE.SQL.Text);
-  ExecQryCreate(NEXTINSTANCIA_SIGNATURE.SQL.Text);
-  ExecQryCreate(NEXTRX_MEZCLA_TRAN_NO.SQL.Text);
-  ExecQryCreate(NEXTRX_PARATA_NO.SQL.Text);
-  ExecQryCreate(NEXTRX_TRAN_NO.SQL.Text);
-  ExecQryCreate(RECONCILIATION_ALL.SQL.Text);
-  ExecQryCreate(REFILL_VALUES.SQL.Text);
-  ExecQryCreate(REFILL_VALUESD0.SQL.Text);
-  ExecQryCreate(SCANED_RX_LINK.SQL.Text);
-  ExecQryCreate(SENDTOHISTORY.SQL.Text);
-  ExecQryCreate(UPDATE_INVENTORY.SQL.Text);
-  ExecQryCreate(UPDATE_PRESCRIPTIONS_NOCLIENTE.SQL.Text);
-  ExecQryCreate(UPDATE_PRESCRIPTIONS_NORX.SQL.Text);
-  ExecQryCreate(UPDATE_RX_REJECTED.SQL.Text);
-  ExecQryCreate(UPDATE_RX_REVERSAL.SQL.Text);
-  ExecQryCreate(UPDATE_RXTEMP1_MEZCLA.SQL.Text);
-  ExecQryCreate(UPDATE_WC_STATUS.SQL.Text);
-  ExecQryCreate(WILLCALL_DELETE.SQL.Text);
-  ExecQryCreate(WILLCALL_History_DELETE.SQL.Text);
-  ExecQryCreate(WILLCALL_TOTAL_AMOUNT_DUE.SQL.Text);
-  ExecQryCreate(WC_PICKUP_TF.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_REFILL_NOTIFIED.SQL.Text);
-  ExecQryCreate(UPDATE_OTC.SQL.Text);
-  ExecQryCreate(RX_INSERT_REFILL_QUERY.SQL.Text);
+  ExecQry(DEUDA.SQL.Text);
+  ExecQry(INSERT_OTC.SQL.Text);
+  ExecQry(INSERT_PRINT_Q.SQL.Text);
+  ExecQry(INSERT_RESPONSE.SQL.Text);
+  ExecQry(INSERTPATPLAN.SQL.Text);
+  ExecQry(LAST_IDENTITY.SQL.Text);
+  ExecQry(NEXTBARCODE.SQL.Text);
+  ExecQry(NEXTINSTANCIA_SIGNATURE.SQL.Text);
+  ExecQry(NEXTRX_MEZCLA_TRAN_NO.SQL.Text);
+  ExecQry(NEXTRX_PARATA_NO.SQL.Text);
+  ExecQry(NEXTRX_TRAN_NO.SQL.Text);
+  ExecQry(RECONCILIATION_ALL.SQL.Text);
+  ExecQry(REFILL_VALUES.SQL.Text);
+  ExecQry(REFILL_VALUESD0.SQL.Text);
+  ExecQry(SCANED_RX_LINK.SQL.Text);
+  ExecQry(SENDTOHISTORY.SQL.Text);
+  ExecQry(UPDATE_INVENTORY.SQL.Text);
+  ExecQry(UPDATE_PRESCRIPTIONS_NOCLIENTE.SQL.Text);
+  ExecQry(UPDATE_PRESCRIPTIONS_NORX.SQL.Text);
+  ExecQry(UPDATE_RX_REJECTED.SQL.Text);
+  ExecQry(UPDATE_RX_REVERSAL.SQL.Text);
+  ExecQry(UPDATE_RXTEMP1_MEZCLA.SQL.Text);
+  ExecQry(UPDATE_WC_STATUS.SQL.Text);
+  ExecQry(WILLCALL_DELETE.SQL.Text);
+  ExecQry(WILLCALL_History_DELETE.SQL.Text);
+  ExecQry(WILLCALL_TOTAL_AMOUNT_DUE.SQL.Text);
+  ExecQry(WC_PICKUP_TF.SQL.Text);
+  ExecQry(UPDATE_OTC_REFILL_NOTIFIED.SQL.Text);
+  ExecQry(UPDATE_OTC.SQL.Text);
+  ExecQry(RX_INSERT_REFILL_QUERY.SQL.Text);
   //======================= TRIGGERS ============================
   //SurescriptsExportToHistory.ExecSQL;
-  ExecQryCreate(INSERT_CASH_PLAN.SQL.Text);
-  ExecQryCreate(LOCK_UNLOCK.SQL.Text);
-  //ExecQryCreate(LOCK_UNLOCK_DEL.SQL.Text);
-  ExecQryCreate(INSERT_RXDATA.SQL.Text);
-  ExecQryCreate(EXPORTTOWILLCALLHISTORY.SQL.Text);
-  ExecQryCreate(CREATEWILLCAL_STATUS_LHISTORY.SQL.Text);
-  ExecQryCreate(EXPORTTOWILLCAL_STATUS_LHISTORY.SQL.Text);
-  ExecQryCreate(UPDATE_OTC_WFPRINTED.SQL.Text);
-  ExecQryCreate(PRESC_DEL_DEPENDENCIES.SQL.Text);
-  ExecQryCreate(CALC_RXDISPONIBLE_PRESCRIPTION.SQL.Text);
-  ExecQryCreate(DELETE_COB_DEPENDENTS.SQL.Text);
-  //ExecQryCreate(CALC_RXDISPONIBLE_DEL.SQL.Text);
-  //ExecQryCreate(OTC_DeleteCleanup.SQL.Text);
-  ExecQryCreate(CALC_RXDISPONIBLE.SQL.Text);
+  ExecQry(INSERT_CASH_PLAN.SQL.Text);
+  ExecQry(LOCK_UNLOCK.SQL.Text);
+  //ExecQry(LOCK_UNLOCK_DEL.SQL.Text);
+  ExecQry(INSERT_RXDATA.SQL.Text);
+  ExecQry(EXPORTTOWILLCALLHISTORY.SQL.Text);
+  ExecQry(CREATEWILLCAL_STATUS_LHISTORY.SQL.Text);
+  ExecQry(EXPORTTOWILLCAL_STATUS_LHISTORY.SQL.Text);
+  ExecQry(UPDATE_OTC_WFPRINTED.SQL.Text);
+  ExecQry(PRESC_DEL_DEPENDENCIES.SQL.Text);
+  ExecQry(CALC_RXDISPONIBLE_PRESCRIPTION.SQL.Text);
+  ExecQry(DELETE_COB_DEPENDENTS.SQL.Text);
+  //ExecQry(CALC_RXDISPONIBLE_DEL.SQL.Text);
+  //ExecQry(OTC_DeleteCleanup.SQL.Text);
+  ExecQry(CALC_RXDISPONIBLE.SQL.Text);
   //===================VIEWS====================================
-  ExecQryCreate(VW_RX_CLINICAL_ALERT_APPROVAL.SQL.Text);
-  ExecQryCreate(OTC_NON_RX.SQL.Text);
-  ExecQryCreate(WC_PATIENTS.SQL.Text);
-  ExecQryCreate(WC_PATIENTS_HISTORY.SQL.Text);
-  ExecQryCreate(APPRISS_VIEW.SQL.Text);
-  ExecQryCreate(APPRISS_VIEW_COMPOUNDS.SQL.Text);
-  ExecQryCreate(RX_VIEW_NOT_COMPOUNDS.SQL.Text);
-  ExecQryCreate(RX.SQL.Text);
-  ExecQryCreate(PRESCRIPTION_FULL.SQL.Text);
-  ExecQryCreate(BESTRX.SQL.Text);
-  ExecQryCreate(BRAND_RX.SQL.Text);
-  ExecQryCreate(OTCHISTORY.SQL.Text);
-  ExecQryCreate(PACIENTES_PLANES.SQL.Text);
-  ExecQryCreate(RX_PROCESADAS.SQL.Text);
-  ExecQryCreate(RX_VIEW.SQL.Text);
-  ExecQryCreate(RXCONTROLADAS.SQL.Text);
-  ExecQryCreate(RX_VIEW_COMPOUNDS.SQL.Text);
+  ExecQry(VW_RX_CLINICAL_ALERT_APPROVAL.SQL.Text);
+  ExecQry(OTC_NON_RX.SQL.Text);
+  ExecQry(WC_PATIENTS.SQL.Text);
+  ExecQry(WC_PATIENTS_HISTORY.SQL.Text);
+  ExecQry(APPRISS_VIEW.SQL.Text);
+  ExecQry(APPRISS_VIEW_COMPOUNDS.SQL.Text);
+  ExecQry(RX_VIEW_NOT_COMPOUNDS.SQL.Text);
+  ExecQry(RX.SQL.Text);
+  ExecQry(PRESCRIPTION_FULL.SQL.Text);
+  ExecQry(BESTRX.SQL.Text);
+  ExecQry(BRAND_RX.SQL.Text);
+  ExecQry(OTCHISTORY.SQL.Text);
+  ExecQry(PACIENTES_PLANES.SQL.Text);
+  ExecQry(RX_PROCESADAS.SQL.Text);
+  ExecQry(RX_VIEW.SQL.Text);
+  ExecQry(RXCONTROLADAS.SQL.Text);
+  ExecQry(RX_VIEW_COMPOUNDS.SQL.Text);
   //===================Index=========================================
 
   //Index_Images;
-  ExecQryCreate(NC_PETID.SQL.Text);
-  ExecQryCreate(INDEX_PASSWORDS.SQL.Text);
-  ExecQryCreate(INDEX_LOG.SQL.Text);
-  ExecQryCreate(Index_Surescripts.SQL.Text);
-  ExecQryCreate(Index_Claim.SQL.Text);
-  ExecQryCreate(Index_Directories.SQL.Text);
-  ExecQryCreate(Index_NCPATNAME.SQL.Text);
-  ExecQryCreate(INDEX_INVENTORY.SQL.Text);
-  ExecQryCreate(INDEX_MEZCLAS.SQL.Text);
-  ExecQryCreate(INDEX_DOCTORS.SQL.Text);
-  ExecQryCreate(INDEX_RESPUESTAS.SQL.Text);
-  ExecQryCreate(Index_OTC_NoReceta.SQL.Text);
-  ExecQryCreate(Index_PatPlanNC_NOCLIENTE.SQL.Text);
-  ExecQryCreate(INDEX_OTC_GUID.SQL.Text);
-  ExecQryCreate(NC_NOCLIENTE_NORX.SQL.Text);
-  ExecQryCreate(INDEX_PRESCRIPTIONS_GUID.SQL.Text);
-  ExecQryCreate(NC_MESSAGE_ID.SQL.Text);
-  ExecQryCreate(NC_NUMEROPLAN.SQL.Text);
+  ExecQry(NC_PETID.SQL.Text);
+  ExecQry(INDEX_PASSWORDS.SQL.Text);
+  ExecQry(INDEX_LOG.SQL.Text);
+  ExecQry(Index_Surescripts.SQL.Text);
+  ExecQry(Index_Claim.SQL.Text);
+  ExecQry(Index_Directories.SQL.Text);
+  ExecQry(Index_NCPATNAME.SQL.Text);
+  ExecQry(INDEX_INVENTORY.SQL.Text);
+  ExecQry(INDEX_MEZCLAS.SQL.Text);
+  ExecQry(INDEX_DOCTORS.SQL.Text);
+  ExecQry(INDEX_RESPUESTAS.SQL.Text);
+  ExecQry(Index_OTC_NoReceta.SQL.Text);
+  ExecQry(Index_PatPlanNC_NOCLIENTE.SQL.Text);
+  ExecQry(INDEX_OTC_GUID.SQL.Text);
+  ExecQry(NC_NOCLIENTE_NORX.SQL.Text);
+  ExecQry(INDEX_PRESCRIPTIONS_GUID.SQL.Text);
+  ExecQry(NC_MESSAGE_ID.SQL.Text);
+  ExecQry(NC_NUMEROPLAN.SQL.Text);
   ExecQry(PRESCRIPTION_FULL_CREATEINDEX.SQL.Text);
 
   //=================== Images ====================================
@@ -5603,12 +5960,45 @@ begin
   FDQuery1.ExecSQL;
 end; }
 
+function ExtractQuotedText(const S: string): string;
+var
+  p1, p2: Integer;
+begin
+  Result := '';
+
+  p1 := Pos('''', S); // first quote
+  if p1 = 0 then Exit;
+
+  p2 := PosEx('''', S, p1 + 1); // second quote
+  if p2 = 0 then Exit;
+
+  Result := Copy(S, p1 + 1, p2 - p1 - 1);
+end;
+
+function TableExists(const ATableName: string; const ASchema: string = 'dbo'): Boolean;
+begin
+  Result :=
+    DMModifyDatabase.FDConnection1.ExecSQLScalar(
+      'SELECT COUNT(*) ' +
+      'FROM sys.tables t ' +
+      'JOIN sys.schemas s ON t.schema_id = s.schema_id ' +
+      'WHERE t.name = :TableName AND s.name = :SchemaName',
+      [ATableName, ASchema]
+    ) > 0;
+end;
+
 
 Procedure TDMModifyDatabase.ExecQryCreate(SQLTxt: String);
+var
+  TableName: String;
 begin
-  qryCreate.sql.Clear;
-  qryCreate.sql.Text := SQLTxt;
-  qryCreate.ExecSQL;
+  TableName := ExtractQuotedText(SQLTxt);
+  if not TableExists(TableName) then
+  begin
+    qryCreate.sql.Clear;
+    qryCreate.sql.Text := SQLTxt;
+    qryCreate.ExecSQL;
+  end;
 end;
 
 
