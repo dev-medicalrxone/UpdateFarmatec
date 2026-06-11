@@ -26,6 +26,7 @@ type
     Panel3: TPanel;
     Label1: TLabel;
     MemoErrors: TMemo;
+    Button1: TButton;
     procedure btnUpdateClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure btnConvertPasswordClick(Sender: TObject);
@@ -35,6 +36,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure TimerCreateNewFieldsTimer(Sender: TObject);
     procedure Button8Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     procedure UpdateOTC_PlanMedicoNo;
     { Private declarations }
@@ -58,6 +60,11 @@ begin
   ShowMessage('Finish updating!');
 end;
 
+procedure TFrmMain.Button1Click(Sender: TObject);
+begin
+  DMModifyDatabase.DROP_TABLES.ExecSQL;
+end;
+
 procedure TFrmMain.Button2Click(Sender: TObject);
 begin
   UpdateOTC_PlanMedicoNo;
@@ -68,7 +75,7 @@ Var
   I: Integer;
 begin
  FrmMain.PageControlInfo.ActivePageIndex := 0;
- DMModifyDatabase.UpdateNullColumns('Passwords');
+ DMModifyDatabase.UpdateNullColumns('Passwords') ;
  DMModifyDatabase.AlterColumns('Passwords');
 
  { With DMModifyDatabase do

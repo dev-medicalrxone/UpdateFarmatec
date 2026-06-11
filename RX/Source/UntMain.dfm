@@ -96,7 +96,7 @@ object FrmMain: TFrmMain
           Width = 210
           Height = 27
           Align = alLeft
-          Caption = 'Update Patient Plan (Primary, etc.)'
+          Caption = 'Create Foreing Keys'
           TabOrder = 5
           OnClick = Button5Click
         end

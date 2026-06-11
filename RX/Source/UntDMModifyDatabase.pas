@@ -1051,6 +1051,33 @@ type
     PATIENT_LOOKUP: TFDQuery;
     GET_INVENTORIYINFO: TFDQuery;
     qryNewSP: TFDQuery;
+    INSERT_REFILL_QUERY_FROM_MSGHUB: TFDQuery;
+    VW_REFILL_REMINDER_CANDIDATES: TFDQuery;
+    RX_UPDATE_PRODUCT_CHANGED: TFDQuery;
+    PROCESS_PATIENT_PRESCRIPTION_STATUS: TFDQuery;
+    PR_OTC: TFDQuery;
+    PR_OTC_INVENTORY_CONTROL: TFDQuery;
+    qryDeleteOrphanR: TFDQuery;
+    FK: TFDQuery;
+    Prescriptons_index: TFDQuery;
+    OTC_Index: TFDQuery;
+    Surescripts_index: TFDQuery;
+    RX_CHANGE_PRESCRIBER: TFDQuery;
+    Patient_Index: TFDQuery;
+    PatPlan_Index: TFDQuery;
+    Doctor_Index: TFDQuery;
+    RX_CHANGE_DRUG: TFDQuery;
+    FK_PRESCRIPTION_PRESCRIBER: TFDQuery;
+    FK_PATPLAN_PLANESMEDICOS: TFDQuery;
+    UpdatePlanesMedicoNo: TFDQuery;
+    DropFK: TFDQuery;
+    SIG_APPLY_METHOD: TFDQuery;
+    D0_GetSchemaValue: TFDQuery;
+    usp_UpdateOrAppendPatPlanFromEligibility: TFDQuery;
+    RX_CHANGE_RX_INFORMATION: TFDQuery;
+    RECALL_DELETED_PRESCRIPTION_EXACT: TFDQuery;
+    RX_CHANGE_RX_DETAIL: TFDQuery;
+    Insurance_Master_Staging: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -1315,6 +1342,7 @@ type
     procedure updatePateientPets;
     procedure qryNewSPError(ASender, AInitiator: TObject;
       var AException: Exception);
+    procedure CreatePK;
    private
     procedure CreateTable(TableName, NewTableName: String);
     procedure ExecSql2(Token1, SQL_Text: String);
@@ -1324,6 +1352,7 @@ type
     procedure DropProgrammableObjectsAndIndexes;
     function Field_exist(ColumnStr, TableStr: String): Boolean;
     function ColumnExists(const ATableName, AColumnName: string): Boolean;
+
 
 
 
@@ -1671,9 +1700,16 @@ begin
   begin
     PhysiciansDATA.ExecSQL;
   end;
+  //=============== CREATE PR_OTC =========================
+  ExecQryCreate(PR_OTC.SQL.Text);
+  //=======================================================
+  //============= CREATE INSURANCE MASTER =================
+  //ExecQryCreate(Insurance_Master_Staging.SQL.Text);
 
   //=======================================================
+  ExecQryCreate(SIG_APPLY_METHOD.SQL.Text);
   FrmMain.PageControlInfo.ActivePageIndex := 0;
+  ExecSql(qryDeleteOrphanR.SQL.Text);
   ExecSql('delete from otc where medicamento = ' + chr(39) + chr(39));
   ExecSql('delete from SurescriptsRX_LABEL');
   ExecSql('delete from Prescriptions where medicamento = ' + chr(39) + chr(39));
@@ -1844,7 +1880,9 @@ begin
     DropColumnIfExists('PRESCRIPTIONS', 'COBRADO_POS');
     DropColumnIfExists('PRESCRIPTIONS', 'DELIVERY');
   end;
-
+  CreateFields('PRESCRIPTIONS', 'DEACTIVATED_REASON', 'VARCHAR(50) null');
+  CreateFields('PRESCRIPTIONS', 'DEACTIVATED_BY', 'CHAR(3) null');
+  CreateFields('PRESCRIPTIONS', 'DEACTIVATED_DATE', 'DATETIME null');
   CreateFields('PRESCRIPTIONS', 'GUID', 'VARCHAR(36) null');
   CreateFields('PRESCRIPTIONS', 'VETERINARY', 'bit NULL');
   ExecSql('UPDATE PRESCRIPTIONS SET BATCH_NUMBER = 0');
@@ -1878,13 +1916,15 @@ begin
   CreateFields('OTC', 'PRINTCOPIES', 'INT default(1) null');
   CreateFields('OTC', 'MedRestrict_ID', 'INT default(0) null');
   CreateFields('OTC', 'PLANESMEDICOSNO_PRIMARY', 'INT null');
-  CreateFields('OTC', 'CRN', 'VARCHAR(15) default ' + chr(39) + chr(39) + ' null');
+  //CreateFields('OTC', 'CRN', 'VARCHAR(15) default ' + chr(39) +' '+ chr(39) + ' not null');
 
-  //ExecSql('ALTER TABLE OTC DROP COLUMN CRN');
   CommonRoutine.DropColumnIfExists('OTC', 'IsCashSale');
-  //ExecSql('ALTER TABLE OTC DROP COLUMN IsCashSale');
-  //ExecSql('ALTER TABLE OTC DROP COLUMN PAIDDATE_REC');
-  //ExecSql('ALTER TABLE otc ADD CONSTRAINT df_APPRISS_SENT DEFAULT 0 FOR APPRISS_SENT');
+  CommonRoutine.DropColumnIfExists('OTC', 'PAIDDATE_REC');
+  CommonRoutine.AddConstraintIfNotExistsSafe(
+    'dbo.OTC',
+    'df_CRN',
+    'ADD CONSTRAINT [df_CRN] DEFAULT ('+ chr(39)+chr(39) +') FOR [CRN]',
+    Err);
   CommonRoutine.AddConstraintIfNotExistsSafe('dbo.otc',
      'df_APPRISS_SENT',
      'ADD  CONSTRAINT [df_APPRISS_SENT]  DEFAULT (0) FOR [APPRISS_SENT]', Err);
@@ -1910,8 +1950,7 @@ begin
   //=============== TABLE REFILL_REMINDER_SCHEDULE =============================
   CreateFields('REFILL_REMINDER_SCHEDULE', 'APPRISS_SCHEDULE_DATE', 'date null');
   ExecSql('UPDATE REFILL_REMINDER_SCHEDULE SET APPRISS_SCHEDULE_DATE = getdate() - 1 WHERE APPRISS_SCHEDULE_DATE IS NULL');
-  //=================== RX_QUEUE ===============================================
-  CreateFields('RX_QUEUE', 'REFILL_QUERY_ID', 'INT null');
+
   //=============== TABLE NEXT_RXNUMBER ========================================
   CreateFields('NEXT_RXNUMBER', 'SIGNATURE_LINK', 'INT null');
   CreateFields('NEXT_RXNUMBER', 'REFERENCE_NO', 'INT null');
@@ -1966,14 +2005,40 @@ begin
 
 
   //=======================REFILL QUERY=========================================
+    CreateFields('RX_QUEUE', 'REFILL_QUERY_ID', 'INT null');
     CreateFields('REFILL_QUERY', 'SCAN_RX_LINK', 'INT NULL');
     CreateFields('REFILL_QUERY', 'PATIENT_ID', 'INT NULL');
     CreateFields('REFILL_QUERY', 'PRIORITY', 'INT NULL');
 
+    CreateFields('REFILL_QUERY', 'MSGHUB_ACTION_ID', 'BIGINT NULL');
+    CreateFields('REFILL_QUERY', 'MSGHUB_INBOUND_ID', 'BIGINT NULL');
+    CreateFields('REFILL_QUERY', 'MSGHUB_OUTBOUND_ID', 'BIGINT NULL');
+    CreateFields('REFILL_QUERY', 'MSGHUB_ENTERPRISE_PATIENT_ID', 'uniqueidentifier NULL');
+    CreateFields('REFILL_QUERY', 'MSGHUB_SOURCE', 'Varchar(30) NULL');
+    CreateFields('REFILL_QUERY', 'MSGHUB_PAYLOAD_JSON', 'varchar(max) null');
+    CreateFields('REFILL_QUERY', 'MSGHUB_CREATED_AT', 'datetime2(0) NULL');
+    CreateFields('REFILL_QUERY', 'MSGHUB_STATUS', 'Varchar(30) NULL');
   //============================================================================
 
 
   //============  Planes medicos=============================================
+   if  CommonRoutine.ColumnNeedsAlter(
+     'PLANESMEDICOS',
+     'SOFTWARE_VENDOR_ID',
+     'VARCHAR',
+     50,
+     True) then
+    begin
+      ExecSql(' ALTER TABLE dbo.PLANESMEDICOS ALTER COLUMN SOFTWARE_VENDOR_ID VARCHAR(50) NULL');
+    end;
+
+
+  CreateFields('PLANESMEDICOS', 'Processor', 'varchar(150) null');
+  CreateFields('PLANESMEDICOS', 'ProcessorCode', 'varchar(100) null');
+  //CreateFields('PLANESMEDICOS', 'Group', 'varchar(100) null');
+  CreateFields('PLANESMEDICOS', 'Network', 'varchar(100) null');
+
+
   CommonRoutine.DropConstraintIfExistsSafe('PLANESMEDICOS', 'PK_PLANESMEDICOS', Err);
   //ExecSql('ALTER TABLE dbo.PLANESMEDICOS ADD CONSTRAINT PK_PLANESMEDICOS PRIMARY KEY (PLANESMEDICOSNO)');
   CommonRoutine.CreatePrimaryKeyIfNotExists('PLANESMEDICOS', 'PK_PLANESMEDICOS', 'PLANESMEDICOSNO', 'dbo');
@@ -2046,6 +2111,26 @@ begin
   CreateFields('INVENTORY_INOUT_REPORT', 'customer_supplier', 'nchar(45) null');
   CreateFieldsImages2('IMAGES', 'UPLOADED_CLOUD', 'bit default(0) NOT NULL');
   //==============WILLCALL_STATUS===============================================
+  ExecQry(
+    'IF EXISTS (' +
+    '   SELECT 1 ' +
+    '   FROM INFORMATION_SCHEMA.COLUMNS ' +
+    '   WHERE TABLE_NAME = ''WILLCALL'' ' +
+    '     AND COLUMN_NAME = ''BAG_NUMBER'' ' +
+    '     AND DATA_TYPE IN (''nchar'', ''nvarchar'', ''char'', ''varchar'') ' +
+    ') ' +
+    'AND NOT EXISTS (' +
+    '   SELECT 1 ' +
+    '   FROM dbo.WILLCALL ' +
+    '   WHERE TRY_CAST(BAG_NUMBER AS INT) IS NULL ' +
+    '     AND LTRIM(RTRIM(BAG_NUMBER)) <> '''' ' +
+    ') ' +
+    'BEGIN ' +
+    '   ALTER TABLE dbo.WILLCALL ' +
+    '   ALTER COLUMN BAG_NUMBER INT ' +
+    'END'
+  );
+
   CreateFields('WILLCALL_STATUS', 'DONE', 'bit default(0) null');
   ExecSql('UPDATE WILLCALL_STATUS SET DONE = 1 WHERE DONE IS NULL');
   CreateFields('WILLCALL_STATUS_HISTORY', 'DONE', 'bit null');
@@ -2126,6 +2211,7 @@ begin
   CreateFields('PASSWORDS', 'POS_ADD_BUTTONS', 'BIT NULL');
 
   //=============== PACIENTES ===========================================
+  CreateFields('PACIENTES', 'NOTIFICATION_MODE_WhatsApp', 'bit default(0) null');
   CommonRoutine.DropColumnIfExists('PACIENTES', 'PATROCINIO');
   CommonRoutine.DropColumnIfExists('PACIENTES', 'CLASIFICATION');
   CommonRoutine.DropColumnIfExists('PACIENTES', 'RETAILPRICE_SELECTED');
@@ -2195,6 +2281,9 @@ begin
   CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
      'DF_PACIENTES_INSTANCIA',
      'ADD  CONSTRAINT [DF_PACIENTES_INSTANCIA]  DEFAULT (0) FOR [INSTANCIA]', Err);
+  CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PACIENTES',
+     'DF_PACIENTES_ACTIVE',
+     'ADD  CONSTRAINT [DF_PACIENTES_ACTIVE]  DEFAULT (1) FOR [ACTIVE]', Err);
 
 
   //ExecSql('ALTER TABLE [PACIENTES] ADD CONSTRAINT DF_PACIENTES_AUSPICIO DEFAULT 0 FOR AUSPICIO');
@@ -3567,7 +3656,9 @@ begin
   end;
   CreateFields('PATPLAN', 'PLANESMEDICOSNO', 'INT NULL');
   CreateFields('PATPLAN', 'COPAY', 'BIT NULL');
-
+  CreateFields('PAT_HEALTH_PLAN', 'PAT_HEALTH_PLAN_ID', 'int IDENTITY(1,1) NOT NULL');
+  ExecSql('ALTER TABLE dbo.PAT_HEALTH_PLAN ADD CONSTRAINT PK_PAT_HEALTH_PLAN PRIMARY KEY CLUSTERED (PAT_HEALTH_PLAN_ID);');
+  CreateFields('PAT_HEALTH_PLAN', 'NUMEROCLIENTE', 'INT NULL');
   CommonRoutine.DropColumnIfExists('PATPLAN', 'SCHEMA1');
   //===========================================================================
   CreateFields('OTC', 'PLANESMEDICOSNO', 'INT NULL');
@@ -3855,8 +3946,8 @@ begin
   //===============================================================================
   CommonRoutine.DropConstraint('PRESCRIPTIONS');
   CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
-    'DF_OTC_ACTIVE',
-    'ADD CONSTRAINT [DF_OTC_ACTIVE] DEFAULT (0) FOR [ACTIVE]', Err);
+    'DF_RX_ACTIVE',
+    'ADD CONSTRAINT [DF_RX_ACTIVE] DEFAULT (1) FOR [ACTIVE]', Err);
   CommonRoutine.AddConstraintIfNotExistsSafe('dbo.PRESCRIPTIONS',
      'DF_RX_RXORIGINCODE',
      'ADD CONSTRAINT DF_RX_RXORIGINCODE DEFAULT 1 FOR RXORIGINCODE', Err);
@@ -3935,7 +4026,9 @@ Var
 begin
   Try
   result := true;
-  SQLStr := 'IF NOT EXISTS(SELECT TOP 1 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE [TABLE_NAME] = ' + chr(39) + TABLENAME + chr(39) + ' AND [COLUMN_NAME] = ' + chr(39) + COLUMN_NAME + chr(39) +') BEGIN ALTER TABLE ' + TABLENAME + ' ADD ' + COLUMN_NAME + ' ' + FieldType +  '  END';
+  SQLStr := 'IF NOT EXISTS(SELECT TOP 1 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE [TABLE_NAME] = ' +
+  chr(39) + TABLENAME + chr(39) + ' AND [COLUMN_NAME] = ' + chr(39) + COLUMN_NAME + chr(39) +') ' +
+  'BEGIN ALTER TABLE ' + TABLENAME + ' ADD ' + COLUMN_NAME + ' ' + FieldType +  '  END';
   QBorrarNonMatchedNDC.SQL.Text := SQLStr;
   QBorrarNonMatchedNDC.ExecSQL;
   Except
@@ -3974,7 +4067,7 @@ var
   today      : TDateTime;
   Ini: TIniFile;
 begin
-  ServerName := '';
+   ServerName := '';
   Registro := TRegistry.Create;
   Registro.RootKey := HKEY_LOCAL_MACHINE;
   Registro.OpenKey('\SOFTWARE\WOW6432Node\FarmaTec2000', TRUE);
@@ -5275,6 +5368,7 @@ begin
     ExecQryCreate(RXDATA.SQL.Text);
   end;
   //================ D0 segments =========================
+  //ExecQry(D0_GetSchemaValue.SQL.Text);
   ExecQry(D0_SEG01_Patient_schema.SQL.Text);
   ExecQry(D0_SEG03_Prescriber_schema.SQL.Text);
   ExecQry(D0_SEG04_Insurance_schema.sql.Text);
@@ -5284,12 +5378,24 @@ begin
   ExecQry(D0_SEG08_DUR_schema.SQL.Text);
   ExecQry(D0_SEG10_Compound_schema.SQL.Text);
   ExecQry(D0_SEG11_Pricing_schema.sql.Text);
+
   ExecQry(D0_BuildTransFile_schema.sql.Text);
   //================== Same active ingredients ============
   ExecQry(UpsertNdc9Ingredient.SQL.Text);
   ExecQry(WC_CHECK_ACTIVE_DUPLICATE_INGREDIENTS.SQL.Text);
   ExecQry(WC_GET_MISSING_ACTIVE_NDC9_MAP.SQL.Text);
   //=======================================================
+  ExecQry(usp_UpdateOrAppendPatPlanFromEligibility.SQL.Text);
+  ExecQry(RX_CHANGE_PRESCRIBER.SQL.Text);
+  ExecQry(RX_CHANGE_DRUG.SQL.Text);
+  ExecQry(RX_CHANGE_RX_INFORMATION.SQL.Text);
+  ExecQry(RX_CHANGE_RX_DETAIL.SQL.Text);
+  ExecQry(PR_OTC_INVENTORY_CONTROL.SQL.Text);
+  ExecQry(RECALL_DELETED_PRESCRIPTION_EXACT.SQL.Text);
+
+  ExecQry(PROCESS_PATIENT_PRESCRIPTION_STATUS.SQL.Text);
+  ExecQry(RX_UPDATE_PRODUCT_CHANGED.SQL.Text);
+  ExecQry(INSERT_REFILL_QUERY_FROM_MSGHUB.SQL.Text);
   ExecQry(WORKSTATION_PRINTER_MAP.SQL.Text);
   ExecQry(GET_INVENTORIYINFO.SQL.Text);
   ExecQry(PATIENT_LOOKUP.SQL.Text);
@@ -5302,7 +5408,7 @@ begin
   ExecSql2('WC_INSERT_NEWPRODUCT_BAG', WC_INSERT_NEWPRODUCT_BAG.SQL.Text);
   ExecQry(SEARCH_GLOBAL.SQL.Text);
   ExecQry(VALIDATE_OTC_BATCH_INTEGRITY.SQL.Text);
-  //ExecQry(fn_GetBatchClinicalSignatureHash.SQL.Text);
+  ExecQry(fn_GetBatchClinicalSignatureHash.SQL.Text);
   ExecQry(GET_PACIENTE_BY_ID.SQL.Text);
   ExecQry(GET_ACTIVE_PATIENT_NDCS.SQL.Text);
   ExecQry(SEARCH_PACIENTES.SQL.Text);
@@ -5460,7 +5566,7 @@ begin
   ExecQry(CREATEWILLCAL_STATUS_LHISTORY.SQL.Text);
   ExecQry(EXPORTTOWILLCAL_STATUS_LHISTORY.SQL.Text);
   ExecQry(UPDATE_OTC_WFPRINTED.SQL.Text);
-  ExecQry(PRESC_DEL_DEPENDENCIES.SQL.Text);
+  //ExecQry(PRESC_DEL_DEPENDENCIES.SQL.Text);
   ExecQry(CALC_RXDISPONIBLE_PRESCRIPTION.SQL.Text);
   ExecQry(DELETE_COB_DEPENDENTS.SQL.Text);
   //ExecQry(CALC_RXDISPONIBLE_DEL.SQL.Text);
@@ -5484,30 +5590,44 @@ begin
   ExecQry(RX_VIEW.SQL.Text);
   ExecQry(RXCONTROLADAS.SQL.Text);
   ExecQry(RX_VIEW_COMPOUNDS.SQL.Text);
+  ExecQry(VW_REFILL_REMINDER_CANDIDATES.SQL.Text);
   //===================Index=========================================
 
   //Index_Images;
-  ExecQry(NC_PETID.SQL.Text);
+  //ExecQry(NC_PETID.SQL.Text);
   ExecQry(INDEX_PASSWORDS.SQL.Text);
   ExecQry(INDEX_LOG.SQL.Text);
   ExecQry(Index_Surescripts.SQL.Text);
   ExecQry(Index_Claim.SQL.Text);
   ExecQry(Index_Directories.SQL.Text);
-  ExecQry(Index_NCPATNAME.SQL.Text);
+  //ExecQry(Index_NCPATNAME.SQL.Text);
   ExecQry(INDEX_INVENTORY.SQL.Text);
   ExecQry(INDEX_MEZCLAS.SQL.Text);
-  ExecQry(INDEX_DOCTORS.SQL.Text);
+  //ExecQry(INDEX_DOCTORS.SQL.Text);
   ExecQry(INDEX_RESPUESTAS.SQL.Text);
-  ExecQry(Index_OTC_NoReceta.SQL.Text);
+  //ExecQry(Index_OTC_NoReceta.SQL.Text);
   ExecQry(Index_PatPlanNC_NOCLIENTE.SQL.Text);
-  ExecQry(INDEX_OTC_GUID.SQL.Text);
-  ExecQry(NC_NOCLIENTE_NORX.SQL.Text);
-  ExecQry(INDEX_PRESCRIPTIONS_GUID.SQL.Text);
-  ExecQry(NC_MESSAGE_ID.SQL.Text);
-  ExecQry(NC_NUMEROPLAN.SQL.Text);
+  //ExecQry(INDEX_OTC_GUID.SQL.Text);
+  //ExecQry(NC_NOCLIENTE_NORX.SQL.Text);
+  //ExecQry(INDEX_PRESCRIPTIONS_GUID.SQL.Text);
+  //ExecQry(NC_MESSAGE_ID.SQL.Text);
+  //ExecQry(NC_NUMEROPLAN.SQL.Text);
   ExecQry(PRESCRIPTION_FULL_CREATEINDEX.SQL.Text);
 
+  //================= Prescriptioon Index =========================
+   ExecQry(Prescriptons_index.SQL.Text);
+  //================= OTC Index ===================================
+   ExecQry(OTC_Index.SQL.Text);
+  //============ Surescripts Index ================================
+  ExecQry(Surescripts_index.SQL.Text);
+  //================== Patient Index ==============================
+  ExecQry(Patient_Index.SQL.Text);
+  //=================== PatPlan Index==============================
+  ExecQry(PatPlan_Index.SQL.Text);
+  //=================== Doctor Index ==============================
+  ExecQry(Doctor_Index.SQL.Text);
   //=================== Images ====================================
+
 
   Try
     IMAGES.ExecSQL;
@@ -5523,6 +5643,10 @@ begin
   //============= Functions ============================
   ExecQry(fn_SplitString.SQL.Text);
   ExecQry(fn_D0_GetFloatCharacter.SQL.Text);
+
+  //===================== Foreing Keys ==========================
+  CreatePK;
+  //=============================================================
 end;
 
 procedure TDMModifyDatabase.UpdateFromResponseAfterExecute(DataSet: TFDDataSet);
@@ -6151,6 +6275,173 @@ begin
 
 end;
 
+procedure FixOrphanDoctorsToNull(AConn: TFDConnection);
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := AConn;
+
+    Q.SQL.Text :=
+      'UPDATE p ' +
+      'SET p.NUMERODOCTOR = NULL ' +
+      'FROM dbo.PRESCRIPTIONS p ' +
+      'LEFT JOIN dbo.DOCTOR d ' +
+      '  ON d.NUMERODOCTOR = p.NUMERODOCTOR ' +
+      'WHERE p.NUMERODOCTOR IS NOT NULL ' +
+      '  AND d.NUMERODOCTOR IS NULL';
+
+    Q.ExecSQL;
+  finally
+    Q.Free;
+  end;
+end;
+
+function FixOrphanPatPlanPlanesMedicosNo(AConn: TFDConnection): Integer;
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := AConn;
+
+    Q.SQL.Text :=
+      'UPDATE pp ' +
+      'SET pp.PLANESMEDICOSNO = NULL ' +
+      'FROM dbo.PATPLAN pp ' +
+      'LEFT JOIN dbo.PLANESMEDICOS pm ' +
+      '  ON pm.PLANESMEDICOSNO = pp.PLANESMEDICOSNO ' +
+      'WHERE pp.PLANESMEDICOSNO IS NOT NULL ' +
+      '  AND pm.PLANESMEDICOSNO IS NULL';
+
+    Q.ExecSQL;
+    Result := Q.RowsAffected;
+  finally
+    Q.Free;
+  end;
+end;
+
+function DeleteOrphanOTCPatients(AConn: TFDConnection): Integer;
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := AConn;
+
+    Q.SQL.Text :=
+      'DELETE o ' +
+      'FROM dbo.OTC o ' +
+      'LEFT JOIN dbo.PACIENTES p ' +
+      '  ON p.NUMEROCLIENTE = o.NUMEROCLIENTE ' +
+      'WHERE o.NUMEROCLIENTE IS NOT NULL ' +
+      '  AND p.NUMEROCLIENTE IS NULL';
+
+    Q.ExecSQL;
+    Result := Q.RowsAffected;
+  finally
+    Q.Free;
+  end;
+end;
+
+function DeleteOrphanOTCPrescriptions(AConn: TFDConnection): Integer;
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := AConn;
+
+    Q.SQL.Text :=
+      'DELETE o ' +
+      'FROM dbo.OTC o ' +
+      'LEFT JOIN dbo.PRESCRIPTIONS p ' +
+      '  ON p.NUMERORECETA = o.NUMERORECETA ' +
+      'WHERE o.NUMERORECETA IS NOT NULL ' +
+      '  AND o.NUMERORECETA <> 0 ' +
+      '  AND p.NUMERORECETA IS NULL';
+
+    Q.ExecSQL;
+    Result := Q.RowsAffected;
+  finally
+    Q.Free;
+  end;
+end;
+
+function GetPrimaryKeyColumnName(AConn: TFDConnection;
+  const ATableName: string): string;
+var
+  Q: TFDQuery;
+begin
+  Result := '';
+
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := AConn;
+
+    Q.SQL.Text :=
+      'SELECT TOP 1 ' +
+      '    c.name AS ColumnName ' +
+      'FROM sys.key_constraints kc ' +
+      'INNER JOIN sys.index_columns ic ' +
+      '    ON kc.parent_object_id = ic.object_id ' +
+      '   AND kc.unique_index_id = ic.index_id ' +
+      'INNER JOIN sys.columns c ' +
+      '    ON ic.object_id = c.object_id ' +
+      '   AND ic.column_id = c.column_id ' +
+      'INNER JOIN sys.tables t ' +
+      '    ON kc.parent_object_id = t.object_id ' +
+      'WHERE kc.type = ''PK'' ' +
+      '  AND t.name = :TableName ' +
+      'ORDER BY ic.key_ordinal';
+
+    Q.ParamByName('TableName').AsString := ATableName;
+
+    Q.Open;
+
+    if not Q.IsEmpty then
+      Result := Q.FieldByName('ColumnName').AsString;
+
+  finally
+    Q.Free;
+  end;
+end;
+
+Procedure TDMModifyDatabase.CreatePK;
+Var
+ primaryKey: String;
+begin
+  ExecSql(DropFK.SQL.Text);
+  DeleteOrphanOTCPatients(FDConnection1);
+  DeleteOrphanOTCPrescriptions(FDConnection1);
+  ExecSql('UPDATE dbo.OTC SET PRODUCT_ID = NULL WHERE PRODUCT_ID = 0;');
+  ExecSql('UPDATE o SET o.PRODUCT_ID = NULL FROM dbo.OTC o LEFT JOIN dbo.INVENTARIOPISO i ON i.PRODUCTNO = o.PRODUCT_ID WHERE o.PRODUCT_ID IS NOT NULL AND o.PRODUCT_ID <> 0 AND i.PRODUCTNO IS NULL;');
+  primaryKey := GetPrimaryKeyColumnName(FDConnection1, 'PLANESMEDICOS');
+  if primaryKey <> 'PLANESMEDICOSNO' then
+  begin
+    ExecSql('ALTER TABLE dbo.PLANESMEDICOS DROP CONSTRAINT PK_PLANESMEDICOS;');
+    ExecSql('ALTER TABLE dbo.PLANESMEDICOS ADD CONSTRAINT PK_PLANESMEDICOSNO PRIMARY KEY CLUSTERED (PLANESMEDICOSNO);');
+  end;
+  ExecSql('DELETE pp FROM dbo.PATPLAN pp LEFT JOIN dbo.PACIENTES p ON p.NUMEROCLIENTE = pp.NUMEROCLIENTE WHERE pp.NUMEROCLIENTE IS NOT NULL AND p.NUMEROCLIENTE IS NULL;');
+  ExecSql('UPDATE dbo.PATPLAN SET PLANESMEDICOSNO = NULL WHERE PLANESMEDICOSNO = 0;');
+  FixOrphanPatPlanPlanesMedicosNo(FDConnection1);
+  ExecSql('ALTER TABLE dbo.PATPLAN WITH CHECK ADD CONSTRAINT FK_PATPLAN_PLANESMEDICOS FOREIGN KEY (PLANESMEDICOSNO) REFERENCES dbo.PLANESMEDICOS (PLANESMEDICOSNO);');
+  FixOrphanDoctorsToNull(FDConnection1);
+  ExecSql('UPDATE dbo.PRESCRIPTIONS SET NUMERODOCTOR = NULL WHERE NUMERODOCTOR = 0;');
+  ExecSql('ALTER TABLE dbo.PRESCRIPTIONS WITH CHECK ADD CONSTRAINT FK_PRESCRIPTIONS_DOCTOR FOREIGN KEY (NUMERODOCTOR) REFERENCES dbo.DOCTOR (NUMERODOCTOR);');
+  ExecQry(UpdatePlanesMedicoNo.SQL.Text);
+  ExecSql('ALTER TABLE dbo.OTC WITH CHECK ADD CONSTRAINT FK_OTC_PLANESMEDICOS FOREIGN KEY (PLANESMEDICOSNO) REFERENCES dbo.PLANESMEDICOS (PLANESMEDICOSNO);');
+  ExecSql('ALTER TABLE dbo.OTC WITH CHECK ADD CONSTRAINT FK_OTC_PRESCRIPTIONS FOREIGN KEY (NUMERORECETA) REFERENCES dbo.PRESCRIPTIONS (NUMERORECETA);');
+  ExecSql('ALTER TABLE dbo.OTC WITH CHECK ADD CONSTRAINT FK_OTC_PACIENTES FOREIGN KEY (NUMEROCLIENTE) REFERENCES dbo.PACIENTES (NUMEROCLIENTE);');
+  ExecSql('ALTER TABLE dbo.OTC WITH CHECK ADD CONSTRAINT FK_OTC_PRODUCT FOREIGN KEY (PRODUCT_ID) REFERENCES dbo.INVENTARIOPISO (PRODUCTNO);');
+  ExecSql('UPDATE p SET p.NUMEROCLIENTE = NULL FROM dbo.PATPLAN p LEFT JOIN dbo.PACIENTES pa ON pa.NUMEROCLIENTE = p.NUMEROCLIENTE WHERE p.NUMEROCLIENTE IS NOT NULL AND pa.NUMEROCLIENTE IS NULL;');
+  ExecSql('UPDATE p SET p.NUMEROCLIENTE = NULL FROM dbo.PRESCRIPTIONS p LEFT JOIN dbo.PACIENTES pa ON pa.NUMEROCLIENTE = p.NUMEROCLIENTE WHERE p.NUMEROCLIENTE IS NOT NULL AND pa.NUMEROCLIENTE IS NULL;');
+  ExecSql('ALTER TABLE dbo.PRESCRIPTIONS WITH CHECK ADD CONSTRAINT FK_PRESCRIPTIONS_PACIENTES FOREIGN KEY (NUMEROCLIENTE) REFERENCES dbo.PACIENTES (NUMEROCLIENTE);');
+  ExecSql('UPDATE p SET p.PRODUCT_ID = NULL FROM dbo.PRESCRIPTIONS p LEFT JOIN dbo.INVENTARIOPISO i ON i.PRODUCTNO = p.PRODUCT_ID WHERE p.PRODUCT_ID IS NOT NULL AND i.PRODUCTNO IS NULL;');
+  ExecSql('ALTER TABLE dbo.PRESCRIPTIONS WITH CHECK ADD CONSTRAINT FK_PRESCRIPTIONS_PRODUCT FOREIGN KEY (PRODUCT_ID) REFERENCES dbo.INVENTARIOPISO (PRODUCTNO);');
+  ExecSql('ALTER TABLE dbo.PATPLAN WITH CHECK ADD CONSTRAINT FK_PATPLAN_PACIENTES FOREIGN KEY (NUMEROCLIENTE) REFERENCES dbo.PACIENTES (NUMEROCLIENTE);');
+end;
 
 
 

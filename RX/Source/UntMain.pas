@@ -60,14 +60,14 @@ implementation
 
 {$R *.dfm}
 
-uses UntDMModifyDatabase, UntDMePrescribe, UntFrmPickDate;
+uses UntDMModifyDatabase, UntDMePrescribe, UntFrmPickDate, untCommon;
 
 procedure TFrmMain.btnUpdateClick(Sender: TObject);
 begin
   DMModifyDatabase.CreateNewFields;
 
   DMModifyDatabase.UpdateFarmatec ;
-  UpdateOTC_PlanMedicoNo;
+  //UpdateOTC_PlanMedicoNo;
 
   ShowMessage('Finish updating!');
 end;
@@ -75,7 +75,7 @@ end;
 procedure TFrmMain.Button2Click(Sender: TObject);
 begin
   DMModifyDatabase.ExecQry(DMModifyDatabase.qryUpdatePatPlanIndex.SQL.Text);
-  //UpdateOTC_PlanMedicoNo;
+  UpdateOTC_PlanMedicoNo;
 end;
 
 
@@ -290,8 +290,9 @@ end;
 
 procedure TFrmMain.Button5Click(Sender: TObject);
 begin
-  DMModifyDatabase.ExecQry(DMModifyDatabase.qryUpdatePatPlanIndex.SQL.Text);
-  ShowMessage('Done!');
+//  DMModifyDatabase.ExecQry(DMModifyDatabase.qryUpdatePatPlanIndex.SQL.Text);
+//  ShowMessage('Done!');
+  DMModifyDatabase.createpk;
 end;
 
 procedure TFrmMain.Button6Click(Sender: TObject);
@@ -369,7 +370,7 @@ procedure TFrmMain.UpdateOTC_PlanMedicoNo;
 begin
   With DMModifyDatabase do
   begin
-    FDQuery1.SQL.Text := 'Select OTCNumber, PLAN_MEDICO from otc where FECHAOTC > ' + chr(39) + '01/01/2023' + chr(39) +' and NUMERORECETA > 0 and PLANESMEDICOSNO = 0';
+    FDQuery1.SQL.Text := 'Select OTCNumber, PLAN_MEDICO from otc where FECHAOTC > ' + chr(39) + '01/01/2000' + chr(39) +' and NUMERORECETA > 0 and PLANESMEDICOSNO = 0';
     FDQuery1.Open;
     While not FDQuery1.Eof do
     begin

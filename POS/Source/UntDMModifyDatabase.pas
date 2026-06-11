@@ -1059,6 +1059,33 @@ type
     POS_GET_HANDHELDINFO: TFDQuery;
     PAYMENT_CARD_LOG: TFDQuery;
     Counters: TFDQuery;
+    CALC_PERCENTAGE_DISCOUNT: TFDQuery;
+    POS_GET_Stickers: TFDQuery;
+    POS_EDIT_INVENTORY: TFDQuery;
+    usp_POSStickersSave: TFDQuery;
+    POS_GET_PROCESS832INFO: TFDQuery;
+    usp_POSStickersFilter: TFDQuery;
+    usp_POSStickersPrintReport: TFDQuery;
+    ufn_GetUPCA: TFDQuery;
+    ufn_ChecksumDigit: TFDQuery;
+    USP_POS_INSERT_SPINPOS_TRANS: TFDQuery;
+    CALC_PAYOUT: TFDQuery;
+    TR_DAILYTOTALS_DELETE_LOG: TFDQuery;
+    FDConnection3: TFDConnection;
+    EM_INSERT_PRODS: TFDQuery;
+    FDTransaction2: TFDTransaction;
+    FDPhysMSSQLDriverLink2: TFDPhysMSSQLDriverLink;
+    FDGUIxWaitCursor2: TFDGUIxWaitCursor;
+    FDConnection2: TFDConnection;
+    DROP_TABLES: TFDQuery;
+    RX_INSERT_TO_WILLCALL: TFDQuery;
+    PR_OTC_INSERT_TO_WILLCALL: TFDQuery;
+    WILLCALL_BAG: TFDQuery;
+    WC_CREATE_WILLCALL_BAG_IF_MISSING: TFDQuery;
+    WC_WILLCALL_DELETE_RX: TFDQuery;
+    WC_WILLCALL_RTS_BAG: TFDQuery;
+    WC_WILLCALL_ADD_LOG: TFDQuery;
+    WC_WILLCALL_PICKUP_BAG: TFDQuery;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
     Procedure ExecSql(Token: String);
@@ -1320,6 +1347,7 @@ type
     procedure FDQuery6Error(ASender, AInitiator: TObject;
       var AException: Exception);
     procedure UpdatePOS;
+    procedure USP_POS_INSERT_SPINPOS_TRANSAfterExecute(DataSet: TFDDataSet);
    private
     procedure CreateTable(TableName, NewTableName: String);
     procedure ExecSql2(Token1, SQL_Text: String);
@@ -2196,10 +2224,7 @@ begin
     FDQuery2.ExecSQL;
   end;
   CreateFields('CREDITDEBITSETUP', 'SIG_METHOD', 'NCHAR(10) null');
-  CreateFields('CREDITDEBITSETUP', 'WC_NOTIFY_BIRTHDAYWISH', 'bit default(1) null');
-  ExecSql('UPDATE CREDITDEBITSETUP SET WC_NOTIFY_BIRTHDAYWISH = 1 WHERE WC_NOTIFY_BIRTHDAYWISH IS NULL');
-  CreateFields('CREDITDEBITSETUP', 'WC_REFILLREMINDER_NOTIFICATION', 'bit default(1) null');
-  ExecSql('UPDATE CREDITDEBITSETUP SET WC_REFILLREMINDER_NOTIFICATION = 1 WHERE WC_REFILLREMINDER_NOTIFICATION IS NULL');
+
   CreateFields('CREDITDEBITSETUP', 'DAW_BY_BRANDGENERIC', 'bit null');
   ExecSql('UPDATE CREDITDEBITSETUP SET DAW_BY_BRANDGENERIC = 0 WHERE DAW_BY_BRANDGENERIC IS NULL');
   CreateFields('CREDITDEBITSETUP', 'OVERIDE_ORIGIN_CODE', 'bit null');
@@ -2481,7 +2506,18 @@ begin
     Values['Database'] := Trim(DataBaseName);
     Values['User_Name'] := 'dbo';
     Values['password'] := 'agabriel';
+    //Values['ODBCAdvanced'] := 'Encrypt=No;TrustServerCertificate=yes';
+
     FDConnection1.Connected := TRUE;
+  end;
+  With FDConnection3.Params do
+  begin
+    Values['Server'] := ServerName;
+    Values['Database'] := 'InventoryIQ';
+    Values['User_Name'] := 'dbo';
+    Values['password'] := 'agabriel';
+    //Values['ODBCAdvanced'] := 'Encrypt=No;TrustServerCertificate=yes';
+    FDConnection3.Connected := TRUE;
   end;
   FrmMain.StatusBar1.Panels[0].Text := Trim(DataBaseName) + ' ' + Trim(ServerName);
   Try
@@ -2491,6 +2527,7 @@ begin
       Values['Database'] := 'Backup';
       Values['User_Name'] := 'dbo';
       Values['password'] := 'agabriel';
+      //Values['ODBCAdvanced'] := 'Encrypt=No;TrustServerCertificate=yes';
       FDConnectionBackup.Connected := TRUE;
     end;
   Except
@@ -2557,6 +2594,17 @@ begin
   Directory61.ExecSQL;
   Prescribers_Specialty.ExecSQL;
   //===================Procedures====================================
+  qProcedures.Connection := FDConnection1;       //Assign connection since connection for DB InventoryIQ has been added AGC042826
+  cdsProcedures.Close;
+  cdsProcedures.CommandText := 'SELECT * FROM sys.procedures where is_ms_shipped = 0';
+  cdsProcedures.Open;
+  cdsProcedures.First;
+  while not cdsProcedures.Eof do
+  begin
+    ExecQry('DROP PROCEDURE ' + Trim(cdsProceduresname.Value));
+    cdsProcedures.Next;
+  end;
+  qProcedures.Connection := FDConnection3;       //Assign connection since connection for DB InventoryIQ has been added AGC042826
   cdsProcedures.Close;
   cdsProcedures.CommandText := 'SELECT * FROM sys.procedures where is_ms_shipped = 0';
   cdsProcedures.Open;
@@ -2567,6 +2615,17 @@ begin
     cdsProcedures.Next;
   end;
   //===================Triggers====================================
+  qTriggers.Connection := FDConnection1;    //Assign connection since connection for DB InventoryIQ has been added AGC042826
+  cdsTriggers.Close;
+  cdsTriggers.CommandText := 'SELECT name, is_instead_of_trigger FROM sys.triggers WHERE type = ' + chr(39) + 'TR' + chr(39);
+  cdsTriggers.Open;
+  cdsTriggers.First;
+  while not cdsTriggers.Eof do
+  begin
+    ExecQry('DROP Trigger ' + Trim(cdsTriggersname.Value));
+    cdsTriggers.Next;
+  end;
+  qTriggers.Connection := FDConnection3;    //Assign connection since connection for DB InventoryIQ has been added AGC042826
   cdsTriggers.Close;
   cdsTriggers.CommandText := 'SELECT name, is_instead_of_trigger FROM sys.triggers WHERE type = ' + chr(39) + 'TR' + chr(39);
   cdsTriggers.Open;
@@ -3862,6 +3921,12 @@ begin
   SuccessfullyCreated('UPDATE_WORKERS_COMP_SEGMENT');
 end;
 
+procedure TDMModifyDatabase.USP_POS_INSERT_SPINPOS_TRANSAfterExecute(
+  DataSet: TFDDataSet);
+begin
+  SuccessfullyCreated('USP_POS_INSERT_SPINPOS_TRANS');
+end;
+
 procedure TDMModifyDatabase.VERIFYRXTEMP1AfterExecute(DataSet: TFDDataSet);
 begin
   SuccessfullyCreated('VERIFYRXTEMP1');
@@ -4099,6 +4164,21 @@ Procedure TDMModifyDatabase.UpdatePOS;
 begin
   //Wescosoft new tables ======================================================
   ExecQryCreate(Counters.SQL.Text);
+  FDQuery2.Close;
+  FDQuery2.SQL.Text := 'select * from counters';
+  FDQuery2.Open;
+  if FDQuery2.RecordCount = 0 then
+  begin
+    FDQuery2.Close;
+    FDQuery2.SQL.Text := 'insert into COUNTERS (sticker, titulo1, titulo2, titulo3, titulo4, ReceiptMessage) values ('
+    + chr(39) + '1' + chr(39) + ','
+    + chr(39) + chr(39) + ','
+    + chr(39) + chr(39) + ','
+    + chr(39) + chr(39) + ','
+    + chr(39) + chr(39) + ','
+    + chr(39) + chr(39) + ')';
+    FDQuery2.ExecSQL;
+  end;
   ExecQryCreate(PAYMENT_CARD_LOG.SQL.Text);
   //End Wescosoft new tables ==================================================
 
@@ -4114,7 +4194,6 @@ begin
   CreateFields('INVENTARIOPISO', 'SPI', 'VARCHAR(10) null');
   CreateFields('InventarioPiso', 'DF_QTY', 'NUMERIC(18,2) null');
   CreateFields('InventarioPiso', 'DF_SIG', 'CHAR(4) null');
-  //CreateFields('INVENTARIOPISO', 'TRIPLES_PRODUCT', 'bit  default(0) null');
 
   CreateFields('INVENTARIOPISO', 'CUSTOMER_ID_REQUIRED', 'bit null');
   CreateFields('EVERTEC', 'DATE_TIME', 'datetime default(getdate()) null');
@@ -4128,6 +4207,9 @@ begin
   CreateFields('DAILYTOTALS', 'CASHBACK', 'DECIMAL(18,2) default(0) null');
   CreateFields('DAILYTOTALS', 'PAYPALREAD', 'DECIMAL(18,2) default(0) null');
   CreateFields('DAILYTOTALS', 'PAYPALCOUNT', 'DECIMAL(18,2) default(0) null');
+  CreateFields('DAILYTOTALS', 'END_OF_DAY', 'BIT null');
+  CreateFields('DAILYTOTALS', 'END_OF_DAY_COMPLETED', 'BIT default (0) null');
+  CreateFields('DAILYTOTALS', 'EOD_LINK', 'int null');
   ExecQryCreate(CALC_DAILYTOTALS.SQL.Text);
   CreateFields('BUTTONS_MOBILE_DETAIL', 'row', 'int null');
   CreateFields('BUTTONS_MOBILE_DETAIL', 'col', 'int null');
@@ -4138,7 +4220,7 @@ begin
   CreateFields('BUTTONS_MOBILE_DETAIL', 'recipe', 'bit null');
 
   CreateFields('TABS_HEADER', 'GROUP_BY_ID', 'int null');
-  CreateFields('TABS_HEADER', 'ISTABLE', 'BIT DEFAULT(0) null');
+  CreateFields('TABS_HEADER', 'ISTABLE', 'BIT DEFAULT(0) null') ;
   CreateFields('TABS_DETAIL', 'GROUP_BY_ID', 'int null');
   CreateFields('TABS_DETAIL', 'GROUP_BY_NAME', 'nchar(20) null');
   CreateFields('TABS_HEADER', 'GROUP_BY_NAME', 'nchar(20) null');
@@ -4157,11 +4239,16 @@ begin
   CreateFields('PRINT_QUERIES', 'DELIVERY', 'BIT null');
   CreateFields('PRINT_QUERIES', 'QUOTE', 'BIT null');
 
+  //=============== PASSWORDS ===========================================
   CreateFields('PASSWORDS', 'POS_PRINT_BALANCE', 'bit null');
   ExecSql('update PASSWORDS set POS_PRINT_BALANCE = 0 where POS_PRINT_BALANCE is Null');
   CreateFields('PASSWORDS', 'HOLD_RECALL_EPRESCRIBE', 'bit null');
   CreateFields('PASSWORDS', 'POS_DELETE_RX', 'bit null');
   CreateFields('PASSWORDS', 'PROCESS_HANDHELD', 'bit  DEFAULT ((0))');
+  CreateFields('PASSWORDS', 'CREATE_INVENTORY', 'bit null');
+  CreateFields('PASSWORDS', 'DELETE_INVENTORY', 'bit null');
+  CreateFields('PASSWORDS', 'EDIT_INVENTORY', 'bit null');
+  ExecSql('update PASSWORDS set EDIT_INVENTORY = 1, CREATE_INVENTORY = 1, DELETE_INVENTORY = 1 where EDITAR_INVENTARIO = 1');
   ExecSql('ALTER TABLE PASSWORDS ADD CONSTRAINT df_POS_DELETE_RX DEFAULT 0 FOR POS_DELETE_RX');
   ExecSql('ALTER TABLE PASSWORDS ADD CONSTRAINT df_HOLD_RECALL_EPRESCRIBE DEFAULT 0 FOR HOLD_RECALL_EPRESCRIBE');
   ExecSql('ALTER TABLE PASSWORDS ADD CONSTRAINT df_CAMBIARCOSTOYPRECIOVENTA DEFAULT 0 FOR CAMBIARCOSTOYPRECIOVENTA');
@@ -4237,6 +4324,7 @@ begin
   CreateFields('INVENTARIOPISO', 'vendor_ide', 'VARCHAR(10) null');
   CreateFields('InventarioPiso', 'pseudo', 'bit default(0)  null');
   CreateFields('InventarioPiso', 'pep_spray', 'bit default(0)  null');
+  CreateFields('InventarioPiso', 'inactive', 'bit default(0)  null');
   CreateFields('InventarioPiso', 'SHOW_ON_ECOMM', 'bit NULL');
   CreateFields('InventarioPiso', 'BARCODE2', 'NCHAR(14) NULL');
   CreateFields('SUPLIDORES', 'STATE', 'char(2) null');
@@ -4245,6 +4333,7 @@ begin
   CreateFields('SUPLIDORES', 'COUNTRY', 'nchar(30) null');
   CreateFields('SUPLIDORES', 'CITY', 'nchar(20) null');
   CreateFields('SUPLIDORES', 'VENDOR_NUMBER', 'nchar(12) null');
+  CreateFields('SUPLIDORES', 'vendor_id', 'varchar(10) null');
   CreateFields('PACIENTES', 'TAX_EXEMPT', 'bit default(0) null');
   ExecSql('UPDATE PACIENTES SET TAX_EXEMPT = 0 WHERE TAX_EXEMPT IS NULL');
     ExecSql('delete from Pick_up');
@@ -4387,12 +4476,16 @@ begin
   CreateFields('CREDITDEBITSETUP', 'LOGO', 'image null');
   CreateFields('CREDITDEBITSETUP', 'CLASSIC_LOGIN', 'bit null');
   CreateFields('CREDITDEBITSETUP', 'POS_RESTAURANT', 'bit null');
+  CreateFields('CREDITDEBITSETUP', 'WF_OVERRIDE_CHECKED', 'bit default (0) null');
   CreateFields('CREDITDEBITSETUP', 'POS_INSERT_NEW_PRODUCT', 'bit null');
   ExecSql('UPDATE CREDITDEBITSETUP SET POS_INSERT_NEW_PRODUCT = 0');
   CreateFields('CREDITDEBITSETUP', 'TIME_CARD', 'bit null');
+  CreateFields('CREDITDEBITSETUP', 'SpinPosURL', 'VARCHAR(50) null');
   //========================== TRANSACTION DETAIL ================================
   CreateFields('TRANSACTIONDETAIL', 'DISCOUNT_PERCENTAGE', 'decimal(18,2) NULL');
   CreateFields('TRANSACTIONDETAIL_TEMP', 'DISCOUNT_PERCENTAGE', 'decimal(18,2) NULL');
+  CreateFields('TRANSACTIONDETAIL', 'SALES_PROMO', 'bit default(0) null');
+  CreateFields('TRANSACTIONDETAIL_TEMP', 'SALES_PROMO', 'bit default(0) null');
   CreateFields('TRANSACTIONDETAIL', 'pseudo', 'bit default(0) null');
   CreateFields('TRANSACTIONDETAIL_TEMP', 'pseudo', 'bit default(0) null');
   CreateFields('TRANSACTIONDETAIL', 'pep_spray', 'bit default(0) null');
@@ -4531,6 +4624,18 @@ begin
   ExecQry('Update CreditDebitSetup set POS_IMPORT_SIGNATURE = 1 where POS_IMPORT_SIGNATURE  IS NULL');
   CreateFields('CREDITDEBITSETUP', 'PERMIT_ZERO_MANUALSALE', 'bit null');
   ExecSql('UPDATE CREDITDEBITSETUP SET PERMIT_ZERO_MANUALSALE = 0 WHERE PERMIT_ZERO_MANUALSALE IS NULL');
+  CreateFields('CREDITDEBITSETUP', 'WC_NOTIFY_BIRTHDAYWISH', 'bit default(1) null');
+  ExecSql('UPDATE CREDITDEBITSETUP SET WC_NOTIFY_BIRTHDAYWISH = 1 WHERE WC_NOTIFY_BIRTHDAYWISH IS NULL');
+  CreateFields('CREDITDEBITSETUP', 'WC_REFILLREMINDER_NOTIFICATION', 'bit default(1) null');
+  ExecSql('UPDATE CREDITDEBITSETUP SET WC_REFILLREMINDER_NOTIFICATION = 1 WHERE WC_REFILLREMINDER_NOTIFICATION IS NULL');
+  CreateFields('CREDITDEBITSETUP', 'WC_USE_MSGHUB', 'bit default(0) null');
+  CreateFields('CREDITDEBITSETUP', 'WC_ACTIVE', 'bit default(0) null');
+  CreateFields('CREDITDEBITSETUP', 'API_KEY', 'varchar(100) null');
+
+  //========================== PRODUCT_SIGNATURE/PSEUDO_SALES_LOG ================================
+  CreateFields('PRODUCT_SIGNATURE', 'PICKEDUP_ADDRESS', 'text null');
+  CreateFields('PRODUCT_SIGNATURE', 'PICKEDUP_ID_TYPE', 'nchar(30) null');
+
   //=============== change shopper DataType to datetime ==========================
 
 
@@ -4597,6 +4702,30 @@ begin
     FDConnection1.Connected := False;
     ExecQry('EXEC sp_rename ' + chr(39) + 'transactionDetail_TEMP.UPC2' + chr(39) +',' + chr(39) + 'UPC' + chr(39) + ',' + chr(39) + 'COLUMN'+ chr(39));
   end;
+
+  //=============== change Willcall datatypes ==========================
+  WILLCALL_BAG.ExecSQL;
+   ExecQry(
+    'IF EXISTS (' +
+    '   SELECT 1 ' +
+    '   FROM INFORMATION_SCHEMA.COLUMNS ' +
+    '   WHERE TABLE_NAME = ''WILLCALL'' ' +
+    '     AND COLUMN_NAME = ''BAG_NUMBER'' ' +
+    '     AND DATA_TYPE IN (''nchar'', ''nvarchar'', ''char'', ''varchar'') ' +
+    ') ' +
+    'AND NOT EXISTS (' +
+    '   SELECT 1 ' +
+    '   FROM dbo.WILLCALL ' +
+    '   WHERE TRY_CAST(BAG_NUMBER AS INT) IS NULL ' +
+    '     AND LTRIM(RTRIM(BAG_NUMBER)) <> '''' ' +
+    ') ' +
+    'BEGIN ' +
+    '   ALTER TABLE dbo.WILLCALL ' +
+    '   ALTER COLUMN BAG_NUMBER INT ' +
+    'END'
+  );
+  //=============== end change Willcall datatypes ==========================
+
   ExecQryCreate(POS_ROUND_TOTAL.SQL.Text);
   ExecQryCreate(POS_HOLD_TRANS.SQL.Text);
   ExecQryCreate(ADD_EDIT_PATPLAN.SQL.Text);
@@ -4649,16 +4778,39 @@ begin
   ExecQryCreate(WILLCALL_History_DELETE.SQL.Text);
   ExecQryCreate(WILLCALL_DELETE.SQL.Text);
   ExecQryCreate(WC_PICKUP_TF.SQL.Text);
+  //=========== WILLCALL NEW ====================
   ExecQryCreate(WC_INSERT_NEWPRODUCT_BAG.SQL.Text);
-  ExecQryCreate(WC_CREATE_NEWBAG.SQL.Text);
+  ExecQryCreate(WC_CREATE_WILLCALL_BAG_IF_MISSING.SQL.Text);
+  ExecQryCreate(PR_OTC_INSERT_TO_WILLCALL.SQL.Text);
+  ExecQryCreate(RX_INSERT_TO_WILLCALL.SQL.Text);
+  ExecQryCreate(WC_WILLCALL_DELETE_RX.SQL.Text);
+  ExecQryCreate(WC_WILLCALL_RTS_BAG.SQL.Text);
+  ExecQryCreate(WC_WILLCALL_ADD_LOG.SQL.Text);
+  ExecQryCreate(WC_WILLCALL_PICKUP_BAG.SQL.Text);
+
+
   ExecQryCreate(WC_BAGPICKUP_UPDATE.SQL.Text);
   ExecQryCreate(UPDATE_WC_STATUS.SQL.Text);
   ExecQryCreate(INSERT_PICKUP.SQL.Text);
   ExecQryCreate(WF_UPDATE_PICKUP.SQL.Text);
+
+
   ExecQryCreate(WF_UPDATE.SQL.Text);
   ExecQryCreate(NEXTBARCODE.SQL.Text);
   ExecQryCreate(SIGNATURE_LINK.SQL.Text);
   ExecQryCreate(DELETE_PRINT_QUERIES.SQL.Text);
+  ExecQryCreate(ADD_EDIT_USERS_RX.SQL.Text);
+  ExecQryCreate(POS_GET_Stickers.SQL.Text);
+  ExecQryCreate(POS_EDIT_INVENTORY.SQL.Text);
+  ExecQryCreate(usp_POSStickersFilter.SQL.Text);
+  //ExecQryCreate(usp_POSStickersSave.SQL.Text);
+  ExecQryCreate(POS_GET_PROCESS832INFO.SQL.Text);
+  ExecQryCreate(usp_POSStickersPrintReport.SQL.Text);
+  ExecQryCreate(USP_POS_INSERT_SPINPOS_TRANS.sql.Text) ;
+  ExecQryCreate(INSERT_PRODUCT_SIGNATURE.SQL.Text);
+  ExecQryCreate(CALC_PAYOUT.SQL.Text);
+  ExecQryCreate(EM_INSERT_PRODS.SQL.Text);  //Procedure for DB InventoryIQ AGC042826
+  ExecQryCreate(BACKUPDATABASE.SQL.Text);
   //=========== triggers ======================================================
   ExecQryCreate(CALC_CART_TOTAL.SQL.Text);
   ExecQryCreate(UPDATE_BALANCE.SQL.Text);
@@ -4679,6 +4831,8 @@ begin
   ExecQryCreate(EXPORTTOWILLCALLHISTORY.SQL.Text);
   ExecQryCreate(CREATEWILLCAL_STATUS_LHISTORY.SQL.Text);
   ExecQryCreate(EXPORTTOWILLCAL_STATUS_LHISTORY.SQL.Text);
+  ExecQryCreate(CALC_PERCENTAGE_DISCOUNT.SQL.Text);
+  ExecQryCreate(TR_DAILYTOTALS_DELETE_LOG.SQL.Text);
 
   ExecQryCreate(PSEUDO_SALES_LOG.sql.Text);
   ExecQryCreate(INVENTORY_CART.SQL.Text);
@@ -4714,7 +4868,7 @@ begin
   ExecQryCreate(OTC_INVENTORY_CONTROL.SQL.Text);
   ExecQryCreate(PWRD_ISAUTHORIZED.SQL.Text);
   ExecQryCreate(ISAUTHORIZED.SQL.Text);
-  ExecQryCreate(UPDATE_INVENTORY.SQL.Text);
+  ExecQryCreate(UPDATE_INVENTORY.SQL.Text) ;
   ExecQryCreate(CLONE_PRODUCT.SQL.Text);
   ExecQryCreate(NEXT_ID.SQL.Text);
   ExecQryCreate(INSERT_LOG.SQL.Text);
@@ -4731,7 +4885,9 @@ begin
   ExecQryCreate(BUTTONS_MOBILE_DETAIL.SQL.Text);
   ExecQryCreate(CUSTOMER_CLASSIFICATION.SQL.Text);
   ExecQryCreate(INVENTORY_INOUT_REPORT.SQL.Text);
-
+  //=========== FUNCTIONS ======================================================
+  ExecQryCreate(ufn_GetUPCA.SQL.Text);
+  ExecQryCreate(ufn_ChecksumDigit.SQL.Text);
 end;
 
 end.

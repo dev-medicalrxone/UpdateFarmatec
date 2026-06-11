@@ -10,7 +10,8 @@ Uses
   IdAttachmentFile, IdAttachment,
   IdSMTP, IdMessage, IdMessageParts, IdEMailAddress,
   IdMessageClient, IdSMTPBase, FireDAC.Phys.MSSQL,
-  System.StrUtils;
+  System.StrUtils,FireDAC.Comp.Client,
+  FireDAC.Stan.Param;
 
 
 type
@@ -18,8 +19,10 @@ type
   TCommonRoutines = class(TObject)
 
 
-   function AddConstraintIfNotExistsSafe(const ATableName, AConstraintName,
-      AAddConstraintSQL: string; out AError: string): Boolean;
+    function AddConstraintIfNotExistsSafe(
+      const ATableName, AConstraintName, AAddConstraintSQL: string;
+      out AError: string
+    ): Boolean;
     function DropConstraintIfExistsSafe(const ATableName,
       AConstraintName: string; out AError: string): Boolean;
     procedure DropColumnIfExists(const ATableName, AColumnName: string);
@@ -35,7 +38,12 @@ type
       const ASchema: string = 'dbo'): Boolean;
 
     function DropConstraint(const TableName: string): string;
-    private
+
+    procedure AlterColumnIfNeeded(const TableName, ColumnName,
+      NewDefinition: string);
+
+    function ColumnNeedsAlter(const TableName, ColumnName, DataType: string;
+      Length: Integer; AllowNull: Boolean): Boolean;
   end;
 
 Var
@@ -49,6 +57,72 @@ uses UntDMModifyDatabase, UntMain;
 
 
 function TCommonRoutines.AddConstraintIfNotExistsSafe(
+  const ATableName, AConstraintName, AAddConstraintSQL: string;
+  out AError: string
+): Boolean;
+var
+  Cmd: string;
+begin
+  Result := False;
+  AError := '';
+
+  if Trim(ATableName) = '' then
+  begin
+    AError := 'Table name is required.';
+    Exit;
+  end;
+
+  if Trim(AConstraintName) = '' then
+  begin
+    AError := 'Constraint name is required.';
+    Exit;
+  end;
+
+  if Trim(AAddConstraintSQL) = '' then
+  begin
+    AError := 'Constraint SQL is required.';
+    Exit;
+  end;
+
+  Cmd :=
+    'IF OBJECT_ID(' + QuotedStr(ATableName) + ') IS NULL ' +
+    'BEGIN ' +
+    '  RAISERROR(''Table %s does not exist.'', 16, 1, ' + QuotedStr(ATableName) + '); ' +
+    '  RETURN; ' +
+    'END; ' +
+
+    'IF NOT EXISTS (' +
+    '  SELECT 1 ' +
+    '  FROM sys.objects o ' +
+    '  WHERE o.object_id = OBJECT_ID(' + QuotedStr(ATableName + '.' + AConstraintName) + ') ' +
+    '    AND o.parent_object_id = OBJECT_ID(' + QuotedStr(ATableName) + ')' +
+    ') ' +
+    'BEGIN ' +
+    '  EXEC(' +
+         QuotedStr('ALTER TABLE ' + ATableName + ' ' + AAddConstraintSQL) +
+    '  ); ' +
+    'END;';
+
+  try
+    with DMModifyDatabase.FDQuery1 do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := Cmd;
+      ExecSQL;
+    end;
+
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      AError := E.Message;
+      Result := False;
+    end;
+  end;
+end;
+
+{function TCommonRoutines.AddConstraintIfNotExistsSafe(
   const ATableName, AConstraintName, AAddConstraintSQL: string;
   out AError: string
 ): Boolean;
@@ -112,6 +186,7 @@ begin
     end;
   end;
 end;
+}
 
 
 function TCommonRoutines.DropConstraintIfExistsSafe(
@@ -402,6 +477,85 @@ begin
 
       cdsObjects.Next;
     end;
+  end;
+end;
+
+
+procedure TCommonRoutines.AlterColumnIfNeeded(
+  const TableName: string;
+  const ColumnName: string;
+  const NewDefinition: string);
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := DMModifyDatabase.FDConnection1;
+
+    Q.SQL.Text :=
+      'SELECT 1 ' +
+      'FROM INFORMATION_SCHEMA.COLUMNS ' +
+      'WHERE TABLE_NAME = :TableName ' +
+      '  AND COLUMN_NAME = :ColumnName';
+
+    Q.ParamByName('TableName').AsString := TableName;
+    Q.ParamByName('ColumnName').AsString := ColumnName;
+    Q.Open;
+
+    if not Q.IsEmpty then
+    begin
+      Q.Close;
+      Q.SQL.Text :=
+        Format(
+          'ALTER TABLE dbo.%s ALTER COLUMN %s %s',
+          [TableName, ColumnName, NewDefinition]
+        );
+
+      Q.ExecSQL;
+    end;
+  finally
+    Q.Free;
+  end;
+end;
+
+function TCommonRoutines.ColumnNeedsAlter(
+  const TableName,
+        ColumnName,
+        DataType: string;
+  Length: Integer;
+  AllowNull: Boolean): Boolean;
+var
+  Q: TFDQuery;
+begin
+  Result := False;
+
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := DMModifyDatabase.FDConnection1;
+
+    Q.SQL.Text :=
+      'SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE ' +
+      'FROM INFORMATION_SCHEMA.COLUMNS ' +
+      'WHERE TABLE_NAME = :TableName ' +
+      '  AND COLUMN_NAME = :ColumnName';
+
+    Q.ParamByName('TableName').AsString := TableName;
+    Q.ParamByName('ColumnName').AsString := ColumnName;
+    Q.Open;
+
+    if Q.IsEmpty then
+      Exit(True);
+
+    Result :=
+      (UpperCase(Q.FieldByName('DATA_TYPE').AsString) <>
+       UpperCase(DataType))
+      or
+      (Q.FieldByName('CHARACTER_MAXIMUM_LENGTH').AsInteger <> Length)
+      or
+      ((Q.FieldByName('IS_NULLABLE').AsString = 'YES') <> AllowNull);
+
+  finally
+    Q.Free;
   end;
 end;
 

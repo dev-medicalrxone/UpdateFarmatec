@@ -53,6 +53,19 @@ object FrmMain: TFrmMain
           TabOrder = 1
           OnClick = Button8Click
         end
+        object Button1: TButton
+          AlignWithMargins = True
+          Left = 274
+          Top = 4
+          Width = 169
+          Height = 27
+          Align = alLeft
+          Caption = 'Drop unnecessary tables'
+          TabOrder = 2
+          OnClick = Button1Click
+          ExplicitLeft = 419
+          ExplicitTop = 2
+        end
       end
       object PageControlInfo: TPageControl
         Left = 0
