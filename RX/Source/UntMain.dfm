@@ -41,7 +41,6 @@ object FrmMain: TFrmMain
           Caption = 'Update Farmatec'
           TabOrder = 0
           OnClick = btnUpdateClick
-          ExplicitTop = 2
         end
         object Button2: TButton
           AlignWithMargins = True

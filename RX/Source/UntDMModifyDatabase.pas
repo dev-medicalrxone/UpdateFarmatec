@@ -1077,7 +1077,14 @@ type
     RX_CHANGE_RX_INFORMATION: TFDQuery;
     RECALL_DELETED_PRESCRIPTION_EXACT: TFDQuery;
     RX_CHANGE_RX_DETAIL: TFDQuery;
-    Insurance_Master_Staging: TFDQuery;
+    Insurance_Master: TFDQuery;
+    PLANESMEDICOS_SWITCH_SAVE: TFDQuery;
+    PLANESMEDICOS_SWITCH: TFDQuery;
+    BILLING_SWITCH: TFDQuery;
+    qryAddSwitches: TFDQuery;
+    Processor_Master: TFDQuery;
+    PLANESMEDICOSupdatefromInsurance_Master: TFDQuery;
+    UPDATE_INVENTORIYINFO: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -1343,10 +1350,11 @@ type
     procedure qryNewSPError(ASender, AInitiator: TObject;
       var AException: Exception);
     procedure CreatePK;
+    procedure ExecQryCreate(SQLTxt: String);
    private
     procedure CreateTable(TableName, NewTableName: String);
     procedure ExecSql2(Token1, SQL_Text: String);
-    procedure ExecQryCreate(SQLTxt: String);
+
     procedure Identity(TableName, OnOff: String);
     procedure DropAllNonConstraintIndexes;
     procedure DropProgrammableObjectsAndIndexes;
@@ -1703,9 +1711,15 @@ begin
   //=============== CREATE PR_OTC =========================
   ExecQryCreate(PR_OTC.SQL.Text);
   //=======================================================
+  //============ BILLING_SWITCH table =====================
+  ExecSql('ALTER TABLE BILLING_SWITCH ADD HOST_SUBMITTER_ID VARCHAR(100) NULL');
   //============= CREATE INSURANCE MASTER =================
-  //ExecQryCreate(Insurance_Master_Staging.SQL.Text);
-
+  if CommonRoutine.TableExists(FDConnection1, 'Insurance_Master') = false then
+  begin
+    ExecQryCreate(Insurance_Master.SQL.Text);
+    ExecQryCreate(Processor_Master.SQL.Text);
+    ExecQry(PLANESMEDICOSupdatefromInsurance_Master.SQL.Text);
+  end;
   //=======================================================
   ExecQryCreate(SIG_APPLY_METHOD.SQL.Text);
   FrmMain.PageControlInfo.ActivePageIndex := 0;
@@ -2022,7 +2036,16 @@ begin
 
 
   //============  Planes medicos=============================================
-   if  CommonRoutine.ColumnNeedsAlter(
+  ExecSql(PLANESMEDICOS_SWITCH.SQL.Text);
+  ExecSql(BILLING_SWITCH.SQL.Text);
+  ExecSql(qryAddSwitches.SQL.Text);
+
+  CreateFields('PLANESMEDICOS', 'Processor', 'varchar(150) null');
+  CreateFields('PLANESMEDICOS', 'ProcessorCode', 'varchar(100) null');
+  CreateFields('PLANESMEDICOS', '[Group]', 'varchar(100) null');
+  CreateFields('PLANESMEDICOS', 'Network', 'varchar(100) null');
+
+  if  CommonRoutine.ColumnNeedsAlter(
      'PLANESMEDICOS',
      'SOFTWARE_VENDOR_ID',
      'VARCHAR',
@@ -2031,12 +2054,17 @@ begin
     begin
       ExecSql(' ALTER TABLE dbo.PLANESMEDICOS ALTER COLUMN SOFTWARE_VENDOR_ID VARCHAR(50) NULL');
     end;
+   if  CommonRoutine.ColumnNeedsAlter(
+     'PLANESMEDICOS',
+     'Processor',
+     'VARCHAR',
+     150,
+     True) then
+    begin
+      ExecSql(' ALTER TABLE dbo.PLANESMEDICOS ALTER COLUMN SOFTWARE_VENDOR_ID VARCHAR(50) NULL');
+    end;
 
 
-  CreateFields('PLANESMEDICOS', 'Processor', 'varchar(150) null');
-  CreateFields('PLANESMEDICOS', 'ProcessorCode', 'varchar(100) null');
-  //CreateFields('PLANESMEDICOS', 'Group', 'varchar(100) null');
-  CreateFields('PLANESMEDICOS', 'Network', 'varchar(100) null');
 
 
   CommonRoutine.DropConstraintIfExistsSafe('PLANESMEDICOS', 'PK_PLANESMEDICOS', Err);
@@ -4067,7 +4095,7 @@ var
   today      : TDateTime;
   Ini: TIniFile;
 begin
-   ServerName := '';
+  ServerName := '';
   Registro := TRegistry.Create;
   Registro.RootKey := HKEY_LOCAL_MACHINE;
   Registro.OpenKey('\SOFTWARE\WOW6432Node\FarmaTec2000', TRUE);
@@ -5385,6 +5413,7 @@ begin
   ExecQry(WC_CHECK_ACTIVE_DUPLICATE_INGREDIENTS.SQL.Text);
   ExecQry(WC_GET_MISSING_ACTIVE_NDC9_MAP.SQL.Text);
   //=======================================================
+  ExecQry(PLANESMEDICOS_SWITCH_SAVE.SQL.Text);
   ExecQry(usp_UpdateOrAppendPatPlanFromEligibility.SQL.Text);
   ExecQry(RX_CHANGE_PRESCRIBER.SQL.Text);
   ExecQry(RX_CHANGE_DRUG.SQL.Text);
@@ -5398,6 +5427,7 @@ begin
   ExecQry(INSERT_REFILL_QUERY_FROM_MSGHUB.SQL.Text);
   ExecQry(WORKSTATION_PRINTER_MAP.SQL.Text);
   ExecQry(GET_INVENTORIYINFO.SQL.Text);
+  ExecQry(UPDATE_INVENTORIYINFO.SQL.Text);
   ExecQry(PATIENT_LOOKUP.SQL.Text);
   ExecSql2('WF_UPDATE_PICKUP', WF_UPDATE_PICKUP.SQL.Text);
   ExecSql2('WC_CREATE_NEWBAG', WC_CREATE_NEWBAG.SQL.Text);

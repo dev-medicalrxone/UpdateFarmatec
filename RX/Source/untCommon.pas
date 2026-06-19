@@ -44,6 +44,8 @@ type
 
     function ColumnNeedsAlter(const TableName, ColumnName, DataType: string;
       Length: Integer; AllowNull: Boolean): Boolean;
+    function TableExists(const AConnection: TFDConnection;
+      const ATableName: string): Boolean;
   end;
 
 Var
@@ -556,6 +558,27 @@ begin
 
   finally
     Q.Free;
+  end;
+end;
+
+
+function TCommonRoutines.TableExists(const AConnection: TFDConnection;
+  const ATableName: string): Boolean;
+var
+  Qry: TFDQuery;
+begin
+  Qry := TFDQuery.Create(nil);
+  try
+    Qry.Connection := AConnection;
+    Qry.SQL.Text :=
+      'SELECT OBJECT_ID(:TableName, ''U'') AS ObjID';
+
+    Qry.ParamByName('TableName').AsString := 'dbo.' + ATableName;
+    Qry.Open;
+
+    Result := not Qry.FieldByName('ObjID').IsNull;
+  finally
+    Qry.Free;
   end;
 end;
 

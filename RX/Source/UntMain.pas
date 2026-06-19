@@ -290,9 +290,15 @@ end;
 
 procedure TFrmMain.Button5Click(Sender: TObject);
 begin
-//  DMModifyDatabase.ExecQry(DMModifyDatabase.qryUpdatePatPlanIndex.SQL.Text);
-//  ShowMessage('Done!');
-  DMModifyDatabase.createpk;
+{  With DMModifyDatabase do
+  begin
+    if CommonRoutine.TableExists(FDConnection1, 'Insurance_Master') = false then
+    begin
+      ExecQryCreate(Insurance_Master.SQL.Text);
+      ExecQryCreate(Processor_Master.SQL.Text);
+    end;
+    ExecQry(PLANESMEDICOSupdatefromInsurance_Master.SQL.Text);
+  end;}
 end;
 
 procedure TFrmMain.Button6Click(Sender: TObject);
