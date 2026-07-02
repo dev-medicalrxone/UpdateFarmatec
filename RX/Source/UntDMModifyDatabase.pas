@@ -1085,6 +1085,8 @@ type
     Processor_Master: TFDQuery;
     PLANESMEDICOSupdatefromInsurance_Master: TFDQuery;
     UPDATE_INVENTORIYINFO: TFDQuery;
+    UpdatePlanesMedicosSwitch: TFDQuery;
+    GET_CONTROLLED_RX_AUDIT_TRAIL: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -2037,8 +2039,10 @@ begin
 
   //============  Planes medicos=============================================
   ExecSql(PLANESMEDICOS_SWITCH.SQL.Text);
+  CreateFields('BILLING_SWITCH', 'PDN_ROUTING_CODE', 'varchar(10) null');
   ExecSql(BILLING_SWITCH.SQL.Text);
   ExecSql(qryAddSwitches.SQL.Text);
+  ExecSql(UpdatePlanesMedicosSwitch.SQL.Text);
 
   CreateFields('PLANESMEDICOS', 'Processor', 'varchar(150) null');
   CreateFields('PLANESMEDICOS', 'ProcessorCode', 'varchar(100) null');
@@ -5395,6 +5399,7 @@ begin
     ExecSql('DROP TABLE RXDATA');
     ExecQryCreate(RXDATA.SQL.Text);
   end;
+
   //================ D0 segments =========================
   //ExecQry(D0_GetSchemaValue.SQL.Text);
   ExecQry(D0_SEG01_Patient_schema.SQL.Text);
@@ -5413,6 +5418,7 @@ begin
   ExecQry(WC_CHECK_ACTIVE_DUPLICATE_INGREDIENTS.SQL.Text);
   ExecQry(WC_GET_MISSING_ACTIVE_NDC9_MAP.SQL.Text);
   //=======================================================
+  ExecQry(GET_CONTROLLED_RX_AUDIT_TRAIL.SQL.Text);
   ExecQry(PLANESMEDICOS_SWITCH_SAVE.SQL.Text);
   ExecQry(usp_UpdateOrAppendPatPlanFromEligibility.SQL.Text);
   ExecQry(RX_CHANGE_PRESCRIBER.SQL.Text);

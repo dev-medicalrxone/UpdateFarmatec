@@ -65,7 +65,6 @@ uses UntDMModifyDatabase, UntDMePrescribe, UntFrmPickDate, untCommon;
 procedure TFrmMain.btnUpdateClick(Sender: TObject);
 begin
   DMModifyDatabase.CreateNewFields;
-
   DMModifyDatabase.UpdateFarmatec ;
   //UpdateOTC_PlanMedicoNo;
 

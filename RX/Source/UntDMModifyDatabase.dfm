@@ -1,7 +1,7 @@
 object DMModifyDatabase: TDMModifyDatabase
   OnCreate = DataModuleCreate
   Height = 2012
-  Width = 7883
+  Width = 8030
   object QAlterViewRxControladas: TFDQuery
     AfterExecute = QAlterViewRxControladasAfterExecute
     Connection = FDConnection1
@@ -5750,7 +5750,8 @@ object DMModifyDatabase: TDMModifyDatabase
       'MARS=yes'
       'Password=agabriel'
       'Database=rblp'
-      'DriverID=MSSQL')
+      'DriverID=MSSQL'
+      'ODBCAdvanced=TrustServerCertificate=yes')
     ResourceOptions.AssignedValues = [rvAutoReconnect]
     ResourceOptions.AutoReconnect = True
     LoginPrompt = False
@@ -6572,169 +6573,273 @@ object DMModifyDatabase: TDMModifyDatabase
     AfterExecute = UPDATE_OTC_RXPAIDAfterExecute
     Connection = FDConnection1
     SQL.Strings = (
-      'CREATE PROCEDURE [dbo].[UPDATE_OTC_RXPAID] (@PATPAID FLOAT,'
-      '@PAGOPLAN      FLOAT,'
-      '@NOAUTH        CHAR(20),'
-      '@NORX          BIGINT,'
-      '@ING_COST_PAID FLOAT,'
-      '@INC_FEE_PAID  FLOAT,'
-      '@DISP_FEE_PAID FLOAT,'
-      '@OTHER_AM_PAID FLOAT,'
-      '@AMO_COPAY     FLOAT,'
-      '@PS_521_FL FLOAT , '
-      '@PS_523_FN FLOAT , '
-      '@PS_512_FC FLOAT , '
-      '@PS_513_FD FLOAT , '
-      '@PS_514_FE FLOAT , '
-      '@PS_517_FH FLOAT , '
-      '@PS_518_FI FLOAT , '
-      '@PS_520_FK FLOAT , '
-      '@PS_346_HH FLOAT , '
-      '@PS_347_HJ FLOAT , '
-      '@PS_348_HK FLOAT , '
-      '@PS_571_NZ FLOAT , '
-      '@PS_575_EQ FLOAT , '
-      '@PS_574_2Y FLOAT , '
-      '@PS_572_4U FLOAT , '
-      '@PS_577_G3 FLOAT , '
-      '@PS_133_UJ FLOAT , '
-      '@PS_134_UK FLOAT , '
-      '@PS_135_UM FLOAT , '
-      '@PS_136_UN FLOAT , '
-      '@PS_137_UP FLOAT,'
-      '@WF_BILLED NCHAR(30),'
-      '@ATENDIDAPOR NCHAR(3),'
-      '@ROBOT bit,'
-      '@LABELNAME NCHAR(20),'
-      '@PRINTERID INT,'
-      '@CLAIMEDFROM NCHAR(20),'
-      '@OTCNUMBER INT,'
-      '@DAYS_SUPPLY INT,'
-      '@MessageID VARCHAR(50) output,'
-      '@PRINTERIP NCHAR(15),'
-      '@REBATE FLOAT)'
-      'AS '
-      'DECLARE @PRODUCT_ID INT'
-      'DECLARE @ROBOT_NDC NCHAR(11)'
-      'DECLARE @IMPRIMIR_TF BIT'
-      'DECLARE @PHARMACIST NCHAR(3)'
-      'DECLARE @NDC NCHAR(11)'
-      'DECLARE @RX_STATUS CHAR(1)'
-      'DECLARE @COSTO FLOAT'
-      'DECLARE @QTY_TEMP FLOAT'
-      'DECLARE @MYREFILL_UPDATE_SMARTPICKUP BIT'
-      'DECLARE @CONTROLLED CHAR(4)'
-      'DECLARE @ISCONTROLLED BIT'
-      'DECLARE @CUST_ID INT'
-      'DECLARE @MEDICAMENTO CHAR(30)'
-      'DECLARE @CODIGOREFILLNUEVO SMALLINT'
-      'DECLARE @INV_QTY_TODATE DECIMAL(18,2)'
-      'SET NOCOUNT ON'
-      'begin'
-      #9'begin transaction '#9'    '
+      'CREATE PROCEDURE [dbo].[UPDATE_OTC_RXPAID]'
+      '('
+      '    @PATPAID FLOAT,'
+      '    @PAGOPLAN FLOAT,'
+      '    @NOAUTH CHAR(20),'
+      '    @NORX BIGINT,'
+      '    @ING_COST_PAID FLOAT,'
+      '    @INC_FEE_PAID FLOAT,'
+      '    @DISP_FEE_PAID FLOAT,'
+      '    @OTHER_AM_PAID FLOAT,'
+      '    @AMO_COPAY FLOAT,'
+      '    @PS_521_FL FLOAT,'
+      '    @PS_523_FN FLOAT,'
+      '    @PS_512_FC FLOAT,'
+      '    @PS_513_FD FLOAT,'
+      '    @PS_514_FE FLOAT,'
+      '    @PS_517_FH FLOAT,'
+      '    @PS_518_FI FLOAT,'
+      '    @PS_520_FK FLOAT,'
+      '    @PS_346_HH FLOAT,'
+      '    @PS_347_HJ FLOAT,'
+      '    @PS_348_HK FLOAT,'
+      '    @PS_571_NZ FLOAT,'
+      '    @PS_575_EQ FLOAT,'
+      '    @PS_574_2Y FLOAT,'
+      '    @PS_572_4U FLOAT,'
+      '    @PS_577_G3 FLOAT,'
+      '    @PS_133_UJ FLOAT,'
+      '    @PS_134_UK FLOAT,'
+      '    @PS_135_UM FLOAT,'
+      '    @PS_136_UN FLOAT,'
+      '    @PS_137_UP FLOAT,'
+      '    @WF_BILLED NCHAR(30),'
+      '    @ATENDIDAPOR NCHAR(3),'
+      '    @ROBOT BIT,'
+      '    @LABELNAME NCHAR(20),'
+      '    @PRINTERID INT,'
+      '    @CLAIMEDFROM NCHAR(20),'
+      '    @OTCNUMBER INT,'
+      '    @DAYS_SUPPLY INT,'
+      '    @MessageID VARCHAR(50) OUTPUT,'
+      '    @PRINTERIP NCHAR(15),'
+      '    @REBATE FLOAT'
+      ')'
+      'AS'
+      'BEGIN'
+      '    SET NOCOUNT ON;'
+      '    SET XACT_ABORT ON;'
+      ''
+      '    DECLARE @PRODUCT_ID INT;'
+      '    DECLARE @ROBOT_NDC NCHAR(11);'
+      '    DECLARE @IMPRIMIR_TF BIT;'
+      '    DECLARE @PHARMACIST NCHAR(3);'
+      '    DECLARE @NDC NCHAR(11);'
+      '    DECLARE @RX_STATUS CHAR(1);'
+      '    DECLARE @COSTO FLOAT;'
+      '    DECLARE @QTY_TEMP FLOAT;'
+      '    DECLARE @MYREFILL_UPDATE_SMARTPICKUP BIT;'
+      '    DECLARE @CONTROLLED CHAR(4);'
+      '    DECLARE @ISCONTROLLED BIT;'
+      '    DECLARE @CUST_ID INT;'
+      '    DECLARE @MEDICAMENTO CHAR(30);'
+      '    DECLARE @CODIGOREFILLNUEVO SMALLINT;'
+      '    DECLARE @INV_QTY_TODATE DECIMAL(18,2);'
+      ''
+      '    BEGIN TRY'
+      ''
+      '        BEGIN TRANSACTION;'
+      ''
+      '        SET @REBATE = ISNULL(@REBATE, 0);'
+      '        SET @MessageID = '#39#39';'
+      ''
+      '        SELECT '
       
-        #9#9'SELECT @MYREFILL_UPDATE_SMARTPICKUP = isnull(MYREFILL_UPDATE_S' +
-        'MARTPICKUP,0) FROM CREDITDEBITSETUP;'
+        '            @MYREFILL_UPDATE_SMARTPICKUP = ISNULL(MYREFILL_UPDAT' +
+        'E_SMARTPICKUP, 0)'
+      '        FROM dbo.CREDITDEBITSETUP;'
+      ''
+      '        SELECT '
+      '            @QTY_TEMP = QTY_TEMP,'
+      '            @RX_STATUS = RX_STATUS,'
+      '            @PRODUCT_ID = PRODUCT_ID,'
+      '            @IMPRIMIR_TF = IMPRIMIR,'
+      '            @PHARMACIST = PHARMACIST,'
+      '            @NDC = NDC,'
+      '            @COSTO = COSTOVENTA,'
+      '            @MessageID = RTRIM(ISNULL(MessageID, '#39#39')),'
+      '            @CONTROLLED = CONTROLADO,'
+      '            @CUST_ID = NUMEROCLIENTE,'
+      '            @MEDICAMENTO = MEDICAMENTO,'
+      '            @CODIGOREFILLNUEVO = CODIGOREFILLNUEVO'
+      '        FROM dbo.OTC'
+      '        WHERE OTCNUMBER = @OTCNUMBER;'
+      ''
+      '        IF @@ROWCOUNT = 0'
+      '        BEGIN'
       
-        #9#9'SELECT @QTY_TEMP = QTY_TEMP, @RX_STATUS = RX_STATUS,  @PRODUCT' +
-        '_ID = PRODUCT_ID, @IMPRIMIR_TF = IMPRIMIR, @PHARMACIST = PHARMAC' +
-        'IST, @NDC = NDC, '
+        '            RAISERROR('#39'OTC record was not found for the supplied' +
+        ' OTCNUMBER.'#39', 16, 1);'
+      '            ROLLBACK TRANSACTION;'
+      '            RETURN;'
+      '        END;'
+      ''
+      '        SELECT '
+      '            @ROBOT = ROBOT,'
+      '            @ROBOT_NDC = ROBOT_NDC,'
+      '            @INV_QTY_TODATE = QTYINVENTARIO'
+      '        FROM dbo.INVENTARIOPISO'
+      '        WHERE PRODUCTNO = @PRODUCT_ID;'
+      ''
       
-        #9#9'@COSTO = COSTOVENTA, @MessageID = rtrim(isnull(MessageID,'#39#39')),' +
-        ' @CONTROLLED = CONTROLADO,@CUST_ID = NUMEROCLIENTE, @MEDICAMENTO' +
-        ' = MEDICAMENTO,'
+        '        IF RTRIM(ISNULL(@CONTROLLED, '#39#39')) IN ('#39'RX'#39', '#39'OTC'#39', '#39'DME'#39 +
+        ')'
+      '            SET @ISCONTROLLED = 0;'
+      '        ELSE'
+      '            SET @ISCONTROLLED = 1;'
+      ''
+      '        IF @RX_STATUS = '#39'C'#39
+      '            SET @QTY_TEMP = 0;'
+      ''
+      '        UPDATE dbo.OTC'
+      '        SET '
+      '            INV_QTY_TODATE = @INV_QTY_TODATE,'
+      '            DEDUCIBLE = @PATPAID,'
+      '            PAGO_PLAN = @PAGOPLAN,'
+      '            NUMERO_AUTORIZACION = @NOAUTH,'
+      '            INGREDIENT_COST_PAID = @ING_COST_PAID,'
+      '            INCENTIVE_FEE_PAID = @INC_FEE_PAID,'
+      '            DISPENSING_FEE_PAID = @DISP_FEE_PAID,'
+      '            OTHER_AMOUNT_PAID = @OTHER_AM_PAID,'
+      '            AMOUNT_COPAY_COINS = @AMO_COPAY,'
+      '            PS_521_FL = @PS_521_FL,'
+      '            PS_523_FN = @PS_523_FN,'
+      '            PS_512_FC = @PS_512_FC,'
+      '            PS_513_FD = @PS_513_FD,'
+      '            PS_514_FE = @PS_514_FE,'
+      '            PS_517_FH = @PS_517_FH,'
+      '            PS_518_FI = @PS_518_FI,'
+      '            PS_520_FK = @PS_520_FK,'
+      '            PS_346_HH = @PS_346_HH,'
+      '            PS_347_HJ = @PS_347_HJ,'
+      '            PS_348_HK = @PS_348_HK,'
+      '            PS_571_NZ = @PS_571_NZ,'
+      '            PS_575_EQ = @PS_575_EQ,'
+      '            PS_574_2Y = @PS_574_2Y,'
+      '            PS_572_4U = @PS_572_4U,'
+      '            PS_577_G3 = @PS_577_G3,'
+      '            PS_133_UJ = @PS_133_UJ,'
+      '            PS_134_UK = @PS_134_UK,'
+      '            PS_135_UM = @PS_135_UM,'
+      '            PS_136_UN = @PS_136_UN,'
+      '            PS_137_UP = @PS_137_UP,'
+      '            WF_BILLED = @WF_BILLED,'
+      '            CLAIM_STATUS = 1,'
+      '            PDN_SENT = 1,'
+      '            TERMINADA = 1,'
+      '            ATENDIDOPOR = @ATENDIDAPOR,'
+      '            GUID = '#39#39','
+      '            RECORD_LOCKED = 0,'
+      '            INSTANCIA = 0,'
+      '            QTY = @QTY_TEMP,'
       
-        #9#9'@CODIGOREFILLNUEVO = CODIGOREFILLNUEVO FROM OTC  WITH (NOLOCK)' +
-        ' WHERE OTCNUMBER = @OTCNUMBER;'
+        '            GANANCIA = (@PAGOPLAN + @PATPAID) - ISNULL(@COSTO, 0' +
+        '),'
+      '            REBATE = @REBATE'
+      '        WHERE OTCNUMBER = @OTCNUMBER'
+      '          AND ISNULL(CLAIM_STATUS, 0) <> 1;'
+      ''
       
-        #9#9'SELECT @ROBOT = ROBOT, @ROBOT_NDC = ROBOT_NDC, @INV_QTY_TODATE' +
-        ' = QTYINVENTARIO  FROM INVENTARIOPISO WHERE PRODUCTNO = @PRODUCT' +
-        '_ID;'
-      #9#9'IF (RTRIM(@CONTROLLED) = '#39'RX'#39') or'
-      #9#9'(RTRIM(@CONTROLLED) = '#39'OTC'#39') or'
+        '        IF (@RX_STATUS = '#39'N'#39') AND (ISNULL(@CODIGOREFILLNUEVO, 0)' +
+        ' = 0)'
+      '        BEGIN'
+      '            UPDATE dbo.PRESCRIPTIONS'
+      '            SET '
+      '                MEDICAMENTO = @MEDICAMENTO,'
+      '                NDC = @NDC,'
+      '                PRODUCT_ID = @PRODUCT_ID,'
+      '                NUMEROCLIENTE = @CUST_ID'
+      '            WHERE NUMERORECETA = @NORX;'
+      '        END;'
+      ''
+      '        IF RTRIM(ISNULL(@MessageID, '#39#39')) <> '#39#39
+      '        BEGIN'
+      '            UPDATE dbo.Surescripts'
+      '            SET Rx_Status = 1'
+      '            WHERE MessageID = @MessageID;'
+      '        END;'
+      ''
+      '        IF ISNULL(@MYREFILL_UPDATE_SMARTPICKUP, 0) = 0'
+      '        BEGIN'
+      '            EXEC dbo.RX_UPDATE_REFILL_QUERY @NORX;'
+      '        END;'
+      ''
+      '        IF @RX_STATUS <> '#39'C'#39
+      '        BEGIN'
+      '            IF (@ROBOT = 1)'
+      '               AND (RTRIM(LTRIM(ISNULL(@ROBOT_NDC, '#39#39'))) <> '#39#39')'
+      '               AND NOT EXISTS'
+      '               ('
+      '                    SELECT 1'
       
-        #9#9'(RTRIM(@CONTROLLED) = '#39'DME'#39') SET @ISCONTROLLED = 0 ELSE SET @I' +
-        'SCONTROLLED = 1;'
-      #9#9'if @RX_STATUS = '#39'C'#39' SELECT @QTY_TEMP = 0;'
-      #9#9'SET @REBATE = ISNULL(@REBATE, 0);'
-      #9#9'Update OTC set INV_QTY_TODATE = @INV_QTY_TODATE,'
-      #9#9'DEDUCIBLE = @PatPaid,'
-      #9#9'PAGO_PLAN = @PagoPlan, NUMERO_AUTORIZACION = @NoAuth, '
-      
-        #9#9'INGREDIENT_COST_PAID = @ING_COST_PAID,  INCENTIVE_FEE_PAID = @' +
-        'INC_FEE_PAID,'
-      
-        #9#9'DISPENSING_FEE_PAID = @DISP_FEE_PAID, OTHER_AMOUNT_PAID = @OTH' +
-        'ER_AM_PAID,'
-      #9#9'AMOUNT_COPAY_COINS = @AMO_COPAY, '
-      
-        #9#9'PS_521_FL = @PS_521_FL, PS_523_FN =  @PS_523_FN, PS_512_FC = @' +
-        'PS_512_FC,'
-      
-        #9#9'PS_513_FD = @PS_513_FD, PS_514_FE = @PS_514_FE, PS_517_FH = @P' +
-        'S_517_FH, '
-      
-        #9#9'PS_518_FI = @PS_518_FI, PS_520_FK = @PS_520_FK, PS_346_HH = @P' +
-        'S_346_HH, '
-      
-        #9#9'PS_347_HJ = @PS_347_HJ, PS_348_HK = @PS_348_HK, PS_571_NZ = @P' +
-        'S_571_NZ, '
-      
-        #9#9'PS_575_EQ = @PS_575_EQ, PS_574_2Y = @PS_574_2Y, PS_572_4U = @P' +
-        'S_572_4U, '
-      
-        #9#9'PS_577_G3 = @PS_577_G3, PS_133_UJ = @PS_133_UJ, PS_134_UK = @P' +
-        'S_134_UK, '
-      
-        #9#9'PS_135_UM = @PS_135_UM, PS_136_UN = @PS_136_UN, PS_137_UP = @P' +
-        'S_137_UP,'
-      #9#9'WF_BILLED = @WF_BILLED, CLAIM_STATUS = 1, PDN_SENT = 1,   '
-      #9#9'TERMINADA = 1, ATENDIDOPOR = @ATENDIDAPOR, '
-      #9#9'GUID = '#39#39', RECORD_LOCKED = 0, INSTANCIA = 0,'
-      #9#9'QTY = @QTY_TEMP, GANANCIA =  (@PagoPlan + @PatPaid) - @COSTO,'
-      #9#9'REBATE = @REBATE'
-      #9#9'where OTCNUMBER = @OTCNUMBER and CLAIM_STATUS <> 1;'
-      #9#9'IF (@RX_STATUS = '#39'N'#39') and (@CODIGOREFILLNUEVO = 0)'
-      #9#9'begin'
-      
-        #9#9#9'Update PRESCRIPTIONS set  MEDICAMENTO = @MEDICAMENTO, NDC = @' +
-        'NDC, PRODUCT_ID = @PRODUCT_ID, NUMEROCLIENTE = @CUST_ID where NU' +
-        'MERORECETA = @NORX;'
-      #9#9'end;'
-      #9#9'if rtrim(@MessageID) > '#39#39
-      #9#9'begin'
-      
-        #9#9#9'Update Surescripts set Rx_Status = 1 where MessageID = @Messa' +
-        'geID;'
-      #9#9'end'
-      #9'commit;'
-      #9'Begin Transaction'
-      #9#9'IF @MYREFILL_UPDATE_SMARTPICKUP = 0'
-      #9#9'begin'
-      #9#9#9'EXEC RX_UPDATE_REFILL_QUERY @NORX; '
-      #9#9'end;'
-      
-        #9#9'--SELECT @ROBOT = ROBOT, @ROBOT_NDC = ROBOT_NDC, @INV_QTY_TODA' +
-        'TE = QTYINVENTARIO  FROM INVENTARIOPISO WHERE PRODUCTNO = @PRODU' +
-        'CT_ID;'
-      
-        #9#9'IF (@ROBOT = 1) AND (RTRIM(LTRIM(@ROBOT_NDC)) > '#39#39') Insert Int' +
-        'o PARATA_QUERIE (OTCNUMBER, PROCESSED) VALUES (@OTCNUMBER,0); '
-      #9#9'IF @RX_STATUS <> '#39'C'#39
-      #9#9'begin'
-      
-        #9#9#9'EXEC dbo.INVENTORY_CONTROL @OTC_NUMBER = @OTCNUMBER, @LABEL_N' +
-        'AME = @LABELNAME, @IMPRIMIR = @IMPRIMIR_TF,'
-      
-        #9#9#9'@PRINTER_ID = @PRINTERID, @REVERSAL = 0, @PRINTER_IP = @PRINT' +
-        'ERIP;'
-      #9#9'end;'
-      
-        #9#9'EXECUTE INSERT_LOG @CLAIMEDFROM, '#39'M'#39', @NDC, @ATENDIDAPOR, @PHA' +
-        'RMACIST, @NORX, @OTCNUMBER,0,@CUST_ID,0,0,0,@PRODUCT_ID,'#39'R'#39','#39'Pre' +
-        'scription was Adjudicated'#39',@ISCONTROLLED,1;'
-      #9'commit'
-      'end;')
+        '                    FROM dbo.PARATA_QUERIE WITH (UPDLOCK, HOLDLO' +
+        'CK)'
+      '                    WHERE OTCNUMBER = @OTCNUMBER'
+      '               )'
+      '            BEGIN'
+      '                INSERT INTO dbo.PARATA_QUERIE'
+      '                ('
+      '                    OTCNUMBER,'
+      '                    PROCESSED'
+      '                )'
+      '                VALUES'
+      '                ('
+      '                    @OTCNUMBER,'
+      '                    0'
+      '                );'
+      '            END;'
+      ''
+      '            EXEC dbo.INVENTORY_CONTROL'
+      '                @OTC_NUMBER = @OTCNUMBER,'
+      '                @LABEL_NAME = @LABELNAME,'
+      '                @IMPRIMIR = @IMPRIMIR_TF,'
+      '                @PRINTER_ID = @PRINTERID,'
+      '                @REVERSAL = 0,'
+      '                @PRINTER_IP = @PRINTERIP;'
+      '        END;'
+      ''
+      '        EXEC dbo.INSERT_LOG'
+      '            @CLAIMEDFROM,'
+      '            '#39'M'#39','
+      '            @NDC,'
+      '            @ATENDIDAPOR,'
+      '            @PHARMACIST,'
+      '            @NORX,'
+      '            @OTCNUMBER,'
+      '            0,'
+      '            @CUST_ID,'
+      '            0,'
+      '            0,'
+      '            0,'
+      '            @PRODUCT_ID,'
+      '            '#39'R'#39','
+      '            '#39'Prescription was Adjudicated'#39','
+      '            @ISCONTROLLED,'
+      '            1;'
+      ''
+      '        COMMIT TRANSACTION;'
+      ''
+      '    END TRY'
+      '    BEGIN CATCH'
+      ''
+      '        IF @@TRANCOUNT > 0'
+      '            ROLLBACK TRANSACTION;'
+      ''
+      '        DECLARE @ErrMsg NVARCHAR(4000);'
+      '        DECLARE @ErrSeverity INT;'
+      '        DECLARE @ErrState INT;'
+      ''
+      '        SELECT '
+      '            @ErrMsg = ERROR_MESSAGE(),'
+      '            @ErrSeverity = ERROR_SEVERITY(),'
+      '            @ErrState = ERROR_STATE();'
+      ''
+      '        RAISERROR(@ErrMsg, @ErrSeverity, @ErrState);'
+      ''
+      '    END CATCH;'
+      'END;')
     Left = 2120
     Top = 32
   end
@@ -30487,6 +30592,7 @@ object DMModifyDatabase: TDMModifyDatabase
       'declare @assc_rx_servirefno char(7)'
       'declare @assc_rx_servirefdate char(8)'
       'declare @met_dec_qty int'
+      'declare @qty_temp decimal(18,2)'
       'declare @new_ref_code smallint'
       'declare @days_supply int'
       'declare @comp_code int'
@@ -30629,7 +30735,7 @@ object DMModifyDatabase: TDMModifyDatabase
         'LUE_AMT,0),'
       #9#9'isnull(PLAN_MEDICO,'#39#39'), isnull(PLANESMEDICOSNO, 0),'
       #9#9'isnull(NUMEROPLAN,0), isnull(NumeroCliente,0),'
-      #9#9'isnull(PROF_SERV_FEE_SUB,0)'
+      #9#9'isnull(PROF_SERV_FEE_SUB,0), isnull(qty_temp,0)'
       
         #9#9'from OTC where OTCNUMBER = @otc_number;-- and (convert(varchar' +
         ', FECHAOTC, 101) = convert(varchar, getdate(), 101)); '
@@ -30683,7 +30789,7 @@ object DMModifyDatabase: TDMModifyDatabase
         'LUE_AMT,0),'
       #9#9'isnull(PLAN_MEDICO,'#39#39'), isnull(PLANESMEDICOSNO, 0),'
       #9#9'isnull(NUMEROPLAN,0), isnull(NumeroCliente,0),'
-      #9#9'isnull(PROF_SERV_FEE_SUB,0)'
+      #9#9'isnull(PROF_SERV_FEE_SUB,0), isnull(qty_temp,0)'
       
         #9#9'from OTC where GUID = @GUID;-- and (convert(varchar, FECHAOTC,' +
         ' 101) = convert(varchar, getdate(), 101)) order by NUMERORECETA;' +
@@ -30718,7 +30824,7 @@ object DMModifyDatabase: TDMModifyDatabase
         'g, @cupon_type, @cupon_number, @cupon_amt,'
       
         #9'@insurance_code, @planesmedicosno, @nopatplan, @customer_no, @p' +
-        'rof_serv_fee '
+        'rof_serv_fee, @qty_temp  '
       #9'WHILE @@FETCH_STATUS = 0'
       #9'BEGIN'#9#9#9
       
@@ -31026,8 +31132,15 @@ object DMModifyDatabase: TDMModifyDatabase
       #9#9#9'end;'
       #9#9#9'-- MODIFIER CODE '
       
-        #9#9#9'if @met_dec_qty > 0 set @send_str += @FS + '#39'E7'#39' + rtrim(CAST(' +
-        '@met_dec_qty AS VARCHAR(10))); -- 442-E7'
+        #9#9#9'--if @met_dec_qty > 0 set @send_str += @FS + '#39'E7'#39' + rtrim(CAS' +
+        'T(@met_dec_qty AS VARCHAR(10))); -- 442-E7'
+      '            if @qty_temp > 0 '
+      #9#9#9'begin'
+      #9#9#9'  set @met_dec_qty = (@qty_temp * 1000);'
+      
+        #9#9#9'  set @send_str += @FS + '#39'E7'#39' + rtrim(CAST(@met_dec_qty AS VA' +
+        'RCHAR(10))); -- 442-E7'
+      '            end;'
       
         #9#9#9'set @send_str += @FS + '#39'D3'#39' + rtrim(CAST(@new_ref_code AS VAR' +
         'CHAR(2))); -- 4'#216'3-D3'
@@ -31494,7 +31607,7 @@ object DMModifyDatabase: TDMModifyDatabase
         'ug, @cupon_type, @cupon_number, @cupon_amt,'
       
         #9#9'@insurance_code, @planesmedicosno, @nopatplan, @customer_no, @' +
-        'prof_serv_fee'
+        'prof_serv_fee, @qty_temp'
       #9'END'
       #9'CLOSE MyCursorD0'
       #9'DEALLOCATE MyCursorD0'#9
@@ -60286,82 +60399,85 @@ object DMModifyDatabase: TDMModifyDatabase
       '    @LICENCIA VARCHAR(15) = NULL,'
       '    @PRESCRIBERIDQUALIFIER VARCHAR(2) = NULL,'
       '    @SPI NCHAR(13) = NULL,'
-      '    @schedule_rx_id_no nchar(12) = null'
+      '    @schedule_rx_id_no NCHAR(12) = NULL'
       ')'
       'AS'
       'BEGIN'
       '    SET NOCOUNT ON;'
       '    SET XACT_ABORT ON;'
       ''
-      '    IF NULLIF(LTRIM(RTRIM(@GUID)), '#39#39') IS NULL'
-      '    BEGIN'
+      '    SET @GUID = NULLIF(LTRIM(RTRIM(@GUID)), '#39#39');'
+      '    SET @LICENCIA = NULLIF(LTRIM(RTRIM(@LICENCIA)), '#39#39');'
       
-        '        RAISERROR('#39'Parameter @GUID is required and cannot be NUL' +
-        'L or blank.'#39', 16, 1);'
-      '        RETURN;'
-      '    END;'
+        '    SET @PRESCRIBERIDQUALIFIER = NULLIF(LTRIM(RTRIM(@PRESCRIBERI' +
+        'DQUALIFIER)), '#39#39');'
+      '    SET @SPI = NULLIF(LTRIM(RTRIM(@SPI)), '#39#39');'
+      
+        '    SET @schedule_rx_id_no = NULLIF(LTRIM(RTRIM(@schedule_rx_id_' +
+        'no)), '#39#39');'
       ''
-      '    SET @GUID = LTRIM(RTRIM(@GUID));'
+      '    IF @GUID IS NULL'
+      
+        '        THROW 50001, '#39'Parameter @GUID is required and cannot be ' +
+        'NULL or blank.'#39', 1;'
       ''
       '    IF ISNULL(@NUMERODOCTOR, 0) <= 0'
-      '    BEGIN'
+      '        THROW 50002, '#39'Parameter @NUMERODOCTOR is required.'#39', 1;'
+      ''
+      '    IF NOT EXISTS'
+      '    ('
+      '        SELECT 1'
+      '        FROM dbo.DOCTOR'
+      '        WHERE NUMERODOCTOR = @NUMERODOCTOR'
+      '    )'
       
-        '        RAISERROR('#39'Parameter @NUMERODOCTOR is required.'#39', 16, 1)' +
-        ';'
-      '        RETURN;'
-      '    END;'
+        '        THROW 50003, '#39'Invalid prescriber. NUMERODOCTOR was not f' +
+        'ound in DOCTOR.'#39', 1;'
       ''
       '    BEGIN TRY'
       '        BEGIN TRANSACTION;'
       ''
-      '        IF NOT EXISTS ('
-      '            SELECT 1'
-      '            FROM dbo.OTC'
-      '            WHERE GUID = @GUID'
+      '        ;WITH RxList AS'
+      '        ('
+      '            SELECT DISTINCT O.NUMERORECETA'
+      '            FROM dbo.OTC O'
+      '            WHERE O.GUID = @GUID'
+      '              AND O.NUMERORECETA IS NOT NULL'
       '        )'
-      '        BEGIN'
-      
-        '            RAISERROR('#39'No OTC records found for the provided GUI' +
-        'D.'#39', 16, 1);'
-      '            RETURN;'
-      '        END;'
-      ''
-      '        IF NOT EXISTS ('
-      '            SELECT 1'
-      '            FROM dbo.DOCTOR'
-      '            WHERE NUMERODOCTOR = @NUMERODOCTOR'
-      '        )'
-      '        BEGIN'
-      
-        '            RAISERROR('#39'Invalid prescriber. NUMERODOCTOR was not ' +
-        'found in DOCTOR.'#39', 16, 1);'
-      '            RETURN;'
-      '        END;'
-      ''
       '        UPDATE P'
       '        SET'
       '            P.NUMERODOCTOR = @NUMERODOCTOR,'
-      '            P.LICENCIA = NULLIF(LTRIM(RTRIM(@LICENCIA)), '#39#39'),'
-      
-        '            P.PRESCRIBERIDQUALIFIER = NULLIF(LTRIM(RTRIM(@PRESCR' +
-        'IBERIDQUALIFIER)), '#39#39'),'
-      '            P.SPI = NULLIF(LTRIM(RTRIM(@SPI)), '#39#39'),'
-      
-        '            P.SCHEDULE_RX_ID_NO = NULLIF(LTRIM(RTRIM(@SCHEDULE_R' +
-        'X_ID_NO)), '#39#39')'
+      '            P.LICENCIA = @LICENCIA,'
+      '            P.PRESCRIBERIDQUALIFIER = @PRESCRIBERIDQUALIFIER,'
+      '            P.SPI = @SPI,'
+      '            P.SCHEDULE_RX_ID_NO = @schedule_rx_id_no'
       '        FROM dbo.PRESCRIPTIONS P'
-      '        WHERE EXISTS ('
-      '            SELECT 1'
-      '            FROM dbo.OTC O'
-      '            WHERE O.GUID = @GUID'
-      '        );'
+      '        INNER JOIN RxList R'
+      '            ON R.NUMERORECETA = P.NUMERORECETA'
+      '        WHERE'
+      '            ISNULL(P.NUMERODOCTOR, 0) <> @NUMERODOCTOR'
+      '            OR ISNULL(P.LICENCIA, '#39#39') <> ISNULL(@LICENCIA, '#39#39')'
+      
+        '            OR ISNULL(P.PRESCRIBERIDQUALIFIER, '#39#39') <> ISNULL(@PR' +
+        'ESCRIBERIDQUALIFIER, '#39#39')'
+      '            OR ISNULL(P.SPI, '#39#39') <> ISNULL(@SPI, '#39#39')'
+      
+        '            OR ISNULL(P.SCHEDULE_RX_ID_NO, '#39#39') <> ISNULL(@schedu' +
+        'le_rx_id_no, '#39#39');'
       ''
       '        IF @@ROWCOUNT = 0'
       '        BEGIN'
+      '            IF NOT EXISTS'
+      '            ('
+      '                SELECT 1'
+      '                FROM dbo.OTC'
+      '                WHERE GUID = @GUID'
+      '            )'
       
-        '            RAISERROR('#39'No PRESCRIPTIONS records were updated for' +
-        ' this GUID.'#39', 16, 1);'
-      '            RETURN;'
+        '                THROW 50004, '#39'No OTC records found for the provi' +
+        'ded GUID.'#39', 1;'
+      ''
+      '            -- Records exist, but no values needed to change.'
       '        END;'
       ''
       '        COMMIT TRANSACTION;'
@@ -60370,20 +60486,9 @@ object DMModifyDatabase: TDMModifyDatabase
       '        IF @@TRANCOUNT > 0'
       '            ROLLBACK TRANSACTION;'
       ''
-      '        DECLARE @ErrMsg NVARCHAR(4000),'
-      '                @ErrSeverity INT,'
-      '                @ErrState INT;'
-      ''
-      '        SELECT'
-      '            @ErrMsg = ERROR_MESSAGE(),'
-      '            @ErrSeverity = ERROR_SEVERITY(),'
-      '            @ErrState = ERROR_STATE();'
-      ''
-      '        RAISERROR(@ErrMsg, @ErrSeverity, @ErrState);'
-      '        RETURN;'
+      '        THROW;'
       '    END CATCH;'
-      'END;'
-      '')
+      'END;')
     Left = 7488
     Top = 1016
   end
@@ -62136,8 +62241,8 @@ object DMModifyDatabase: TDMModifyDatabase
       '    END;'
       'END;'
       '')
-    Left = 7688
-    Top = 88
+    Left = 7904
+    Top = 264
   end
   object PLANESMEDICOS_SWITCH: TFDQuery
     Connection = FDConnection1
@@ -62179,42 +62284,8 @@ object DMModifyDatabase: TDMModifyDatabase
         'NESMEDICOS_SWITCH_CREATED_AT]  DEFAULT (getdate()) FOR [CREATED_' +
         'AT]'
       ';'
-      ''
-      
-        'ALTER TABLE [dbo].[PLANESMEDICOS_SWITCH]  WITH CHECK ADD  CONSTR' +
-        'AINT [FK_PLANESMEDICOS_SWITCH_PLAN] FOREIGN KEY([PLANESMEDICOSNO' +
-        '])'
-      'REFERENCES [dbo].[PLANESMEDICOS] ([PLANESMEDICOSNO])'
-      ';'
-      ''
-      
-        'ALTER TABLE [dbo].[PLANESMEDICOS_SWITCH] CHECK CONSTRAINT [FK_PL' +
-        'ANESMEDICOS_SWITCH_PLAN]'
-      ';'
-      ''
-      
-        'ALTER TABLE [dbo].[PLANESMEDICOS_SWITCH]  WITH CHECK ADD  CONSTR' +
-        'AINT [FK_PLANESMEDICOS_SWITCH_SWITCH] FOREIGN KEY([SWITCH_ID])'
-      'REFERENCES [dbo].[BILLING_SWITCH] ([SWITCH_ID])'
-      ';'
-      ''
-      
-        'ALTER TABLE [dbo].[PLANESMEDICOS_SWITCH] CHECK CONSTRAINT [FK_PL' +
-        'ANESMEDICOS_SWITCH_SWITCH]'
-      ';'
-      ''
-      
-        'ALTER TABLE [dbo].[PLANESMEDICOS_SWITCH]  WITH CHECK ADD  CONSTR' +
-        'AINT [CK_PLANESMEDICOS_SWITCH_PRIORITY] CHECK  (([PRIORITY_ORDER' +
-        ']>(0)))'
-      ';'
-      ''
-      
-        'ALTER TABLE [dbo].[PLANESMEDICOS_SWITCH] CHECK CONSTRAINT [CK_PL' +
-        'ANESMEDICOS_SWITCH_PRIORITY]'
-      ';'
       'END;')
-    Left = 7688
+    Left = 7904
     Top = 24
   end
   object BILLING_SWITCH: TFDQuery
@@ -62239,6 +62310,7 @@ object DMModifyDatabase: TDMModifyDatabase
       #9'[CREATED_AT] [datetime] NOT NULL,'
       #9'[UPDATED_AT] [datetime] NULL,'
       #9'[HOST_SUBMITTER_ID] [varchar](100) NULL,'
+      #9'[PDN_ROUTING_CODE] [varchar](10) NULL,'
       ' CONSTRAINT [PK_BILLING_SWITCH] PRIMARY KEY CLUSTERED '
       '('
       #9'[SWITCH_ID] ASC'
@@ -62248,55 +62320,149 @@ object DMModifyDatabase: TDMModifyDatabase
         'E_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]'
       ') ON [PRIMARY]'
       ';'
+      ''
       
         'ALTER TABLE [dbo].[BILLING_SWITCH] ADD  CONSTRAINT [DF_BILLING_S' +
         'WITCH_ACTIVE]  DEFAULT ((1)) FOR [ACTIVE]'
       ';'
+      ''
       
         'ALTER TABLE [dbo].[BILLING_SWITCH] ADD  CONSTRAINT [DF_BILLING_S' +
         'WITCH_BILLING_TYPE]  DEFAULT ('#39'NCPDP'#39') FOR [BILLING_TYPE]'
       ';'
+      ''
       
         'ALTER TABLE [dbo].[BILLING_SWITCH] ADD  CONSTRAINT [DF_BILLING_S' +
         'WITCH_CREATED_AT]  DEFAULT (getdate()) FOR [CREATED_AT]'
       ';'
+      ''
       
         'ALTER TABLE [dbo].[BILLING_SWITCH]  WITH CHECK ADD  CONSTRAINT [' +
         'CK_BILLING_SWITCH_BILLING_TYPE] CHECK  (([BILLING_TYPE]='#39'FILE'#39' O' +
         'R [BILLING_TYPE]='#39'API'#39' OR [BILLING_TYPE]='#39'NCPDP'#39'))'
       ';'
+      ''
       
         'ALTER TABLE [dbo].[BILLING_SWITCH] CHECK CONSTRAINT [CK_BILLING_' +
         'SWITCH_BILLING_TYPE]'
       ';'
+      ''
+      
+        'ALTER TABLE [dbo].[BILLING_SWITCH]  WITH CHECK ADD  CONSTRAINT [' +
+        'CK_BILLING_SWITCH_PDN_ROUTING_CODE] CHECK  (([PDN_ROUTING_CODE] ' +
+        'IS NULL OR ([PDN_ROUTING_CODE]='#39'EMD'#39' OR [PDN_ROUTING_CODE]='#39'RLH'#39 +
+        ')))'
+      ';'
+      ''
+      
+        'ALTER TABLE [dbo].[BILLING_SWITCH] CHECK CONSTRAINT [CK_BILLING_' +
+        'SWITCH_PDN_ROUTING_CODE]'
+      ';'
       'END;')
-    Left = 7520
-    Top = 24
+    Left = 7912
+    Top = 96
   end
   object qryAddSwitches: TFDQuery
     Connection = FDConnection1
     SQL.Strings = (
-      'IF NOT EXISTS (SELECT 1 FROM dbo.BILLING_SWITCH)'
+      'IF NOT EXISTS (SELECT 1 FROM BILLING_SWITCH)'
       'BEGIN'
-      '    INSERT INTO dbo.BILLING_SWITCH'
+      '    SET IDENTITY_INSERT BILLING_SWITCH ON;'
+      ''
+      '    INSERT INTO BILLING_SWITCH'
       '    ('
+      '        SWITCH_ID,'
       '        SWITCH_NAME,'
       '        DESCRIPTION,'
+      '        ACTIVE,'
       '        BILLING_TYPE,'
       '        VERSION,'
-      '        ACTIVE'
+      '        AUTH_URL,'
+      '        CLAIM_URL,'
+      '        SUBMITTER_ID,'
+      '        HOST_SUBMITTER_ID,'
+      '        PDN_ROUTING_CODE,'
+      '        CREATED_AT,'
+      '        UPDATED_AT'
       '    )'
       '    VALUES'
+      '    ('
+      '        1,'
+      '        '#39'Optum'#39','
+      '        '#39'Optum / Rx CardFinder / NCPDP switch'#39','
+      '        1,'
+      '        '#39'NCPDP'#39','
+      '        '#39'D0'#39','
+      '        '#39'https://apigw.optum.com/api/auth/sntl/v1/token'#39','
       
-        '    ('#39'Optum'#39',  '#39'Optum / Rx CardFinder / NCPDP switch'#39', '#39'NCPDP'#39', ' +
-        #39'D0'#39', 1),'
+        '        '#39'https://apigw.optum.com/pharmacynetwork/submitter/v1/tr' +
+        'ansactions'#39','
+      '        '#39'WESC_GZ51MQ68KS'#39','
+      '        '#39'WESC_GZ51MQ68KS'#39','
+      '        NULL,'
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    ),'
+      '    ('
+      '        2,'
+      '        '#39'eClaim'#39','
+      '        '#39'RelayHealth / McKesson NCPDP switch'#39','
+      '        1,'
+      '        '#39'NCPDP'#39','
+      '        '#39'D0'#39','
+      '        NULL,'
+      '        '#39'rxclaims.relayhealth.com:443'#39','
+      '        NULL,'
+      '        NULL,'
+      '        NULL,'
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    ),'
+      '    ('
+      '        3,'
+      '        '#39'PDN'#39','
+      '        '#39'Pharmacy Data Network switch'#39','
+      '        1,'
+      '        '#39'NCPDP'#39','
+      '        '#39'D0'#39','
       
-        '    ('#39'eClaim'#39', '#39'RelayHealth / McKesson NCPDP switch'#39', '#39'NCPDP'#39', '#39 +
-        'D0'#39', 1),'
-      '    ('#39'PDN'#39',    '#39'Pharmacy Data Network switch'#39','#39'NCPDP'#39', '#39'D0'#39', 1);'
-      'END')
-    Left = 7504
-    Top = 104
+        '        '#39'https://claims02.pharmacydatanetwork.com:4430/ProcessCl' +
+        'aim.asmx?wsdl'#39','
+      
+        '        '#39'https://claims.pharmacydatanetwork.com:4430/ProcessClai' +
+        'm.asmx?wsdl'#39','
+      '        NULL,'
+      '        NULL,'
+      '        '#39'RLH'#39','
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    ),'
+      '    ('
+      '        4,'
+      '        '#39'Optum Cert'#39','
+      '        '#39'Optum Certification switch'#39','
+      '        1,'
+      '        '#39'NCPDP'#39','
+      '        '#39'D0'#39','
+      
+        '        '#39'https://sandbox-apigw.optum.com/api/auth/sntl/v1/token'#39 +
+        ','
+      
+        '        '#39'https://sandbox-apigw.optum.com/pharmacynetwork/submitt' +
+        'er/v1/transactions'#39','
+      '        '#39'WESC_DB17GZ94PA'#39','
+      '        NULL,'
+      '        NULL,'
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    );'
+      ''
+      '    SET IDENTITY_INSERT BILLING_SWITCH OFF;'
+      ''
+      '    DBCC CHECKIDENT ('#39'BILLING_SWITCH'#39', RESEED, 4);'
+      'END;')
+    Left = 7904
+    Top = 176
   end
   object Processor_Master: TFDQuery
     Connection = FDConnection1
@@ -62805,5 +62971,315 @@ object DMModifyDatabase: TDMModifyDatabase
       'END')
     Left = 7736
     Top = 1648
+  end
+  object UpdatePlanesMedicosSwitch: TFDQuery
+    Connection = FDConnection1
+    SQL.Strings = (
+      'SET NOCOUNT ON;'
+      'IF NOT EXISTS (SELECT 1 FROM PLANESMEDICOS_SWITCH)'
+      'BEGIN'
+      ''
+      '    -- Priority 1 (Primary Switch = 3)'
+      '    INSERT INTO PLANESMEDICOS_SWITCH'
+      '    ('
+      '        PLANESMEDICOSNO,'
+      '        SWITCH_ID,'
+      '        PRIORITY_ORDER,'
+      '        ACTIVE,'
+      '        CREATED_AT,'
+      '        UPDATED_AT'
+      '    )'
+      '    SELECT'
+      '        P.PLANESMEDICOSNO,'
+      '        3,'
+      '        1,'
+      '        1,'
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    FROM PLANESMEDICOS P;'
+      ''
+      '    -- Priority 2 (Secondary Switch = 2)'
+      '    INSERT INTO PLANESMEDICOS_SWITCH'
+      '    ('
+      '        PLANESMEDICOSNO,'
+      '        SWITCH_ID,'
+      '        PRIORITY_ORDER,'
+      '        ACTIVE,'
+      '        CREATED_AT,'
+      '        UPDATED_AT'
+      '    )'
+      '    SELECT'
+      '        P.PLANESMEDICOSNO,'
+      '        2,'
+      '        2,'
+      '        1,'
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    FROM PLANESMEDICOS P;'
+      ''
+      '    -- Priority 3 (Tertiary Switch = 1)'
+      '    INSERT INTO PLANESMEDICOS_SWITCH'
+      '    ('
+      '        PLANESMEDICOSNO,'
+      '        SWITCH_ID,'
+      '        PRIORITY_ORDER,'
+      '        ACTIVE,'
+      '        CREATED_AT,'
+      '        UPDATED_AT'
+      '    )'
+      '    SELECT'
+      '        P.PLANESMEDICOSNO,'
+      '        1,'
+      '        3,'
+      '        1,'
+      '        GETDATE(),'
+      '        GETDATE()'
+      '    FROM PLANESMEDICOS P;'
+      ''
+      'END;')
+    Left = 7912
+    Top = 384
+  end
+  object GET_CONTROLLED_RX_AUDIT_TRAIL: TFDQuery
+    Connection = FDConnection1
+    SQL.Strings = (
+      'CREATE PROCEDURE [dbo].[GET_CONTROLLED_RX_AUDIT_TRAIL]'
+      '  @RX_NUMBER  bigint = NULL,'
+      '  @OTCNUMBER  int = NULL,'
+      '  @MESSAGE_ID varchar(100) = NULL'
+      'AS'
+      'BEGIN'
+      '  SET NOCOUNT ON;'
+      ''
+      '  SELECT *'
+      '  FROM'
+      '  ('
+      '    SELECT'
+      '      L.FECHA AS EVENT_TIME,'
+      '      '#39'LOG'#39' AS SOURCE_TABLE,'
+      '      CASE L.CODIGO'
+      '        WHEN '#39'D'#39' THEN '#39'Delete'#39
+      '        WHEN '#39'U'#39' THEN '#39'Update'#39
+      '        WHEN '#39'M'#39' THEN '#39'Update'#39
+      '        WHEN '#39'A'#39' THEN '#39'Append'#39
+      '        WHEN '#39'B'#39' THEN '#39'Backup'#39
+      '        WHEN '#39'P'#39' THEN '#39'Print'#39
+      '        WHEN '#39'E'#39' THEN '#39'Error'#39
+      '        ELSE L.CODIGO'
+      '      END AS EVENT_TYPE,'
+      ''
+      '      L.NO_RX AS RX_NUMBER,'
+      '      L.OTCNUMBER,'
+      '      O.MessageID AS MESSAGE_ID,'
+      ''
+      '      L.DRUG_ID,'
+      '      COALESCE(L.NDC_BARCODE, CL.NDC, O.NDC, P.NDC) AS NDC,'
+      
+        '      COALESCE(CL.DRUG, O.MEDICAMENTO, P.MEDICAMENTO, L.DESCRIPC' +
+        'ION) AS DRUG_NAME,'
+      '      CL.SCHEDULE_TYPE,'
+      ''
+      '      L.CUSTOMER_ID AS PATIENT_ID,'
+      '      CL.PATIENT_SUPPLIER AS PATIENT_NAME,'
+      ''
+      
+        '      COALESCE(NULLIF(L.PRESCRIBER_ID, 0), P.NumeroDoctor, CL.PR' +
+        'ESCRIBER_NUMBER) AS PRESCRIBER_ID,'
+      '      CL.PRESCRIBER AS PRESCRIBER_NAME,'
+      '      D.DEA_Federal AS DEA,'
+      ''
+      '      L.USUARIO AS USER_INITIALS,'
+      '      L.SUPERVISOR AS PHARMACIST,'
+      '      L.SUCCESSFUL,'
+      '      L.DESCRIPCION AS DESCRIPTION,'
+      '      L.NOTE'
+      '    FROM LOG L'
+      '    LEFT JOIN OTC O'
+      '      ON O.OTCNUMBER = L.OTCNUMBER'
+      '    LEFT JOIN Prescriptions P'
+      '      ON P.NumeroReceta = L.NO_RX'
+      '    OUTER APPLY'
+      '    ('
+      '      SELECT TOP 1 C.*'
+      '      FROM CONTROLED_LOG C'
+      '      WHERE'
+      '        (L.OTCNUMBER > 0 AND C.OTCNUMBER = L.OTCNUMBER)'
+      '        OR (L.NO_RX > 0 AND C.RX_NUMBER = L.NO_RX)'
+      '      ORDER BY C.[DATE] DESC'
+      '    ) CL'
+      '    LEFT JOIN Doctor D'
+      
+        '      ON D.NumeroDoctor = COALESCE(NULLIF(L.PRESCRIBER_ID, 0), P' +
+        '.NumeroDoctor, CL.PRESCRIBER_NUMBER)'
+      '    WHERE L.CONTROLLED = 1'
+      '      AND (@RX_NUMBER IS NULL OR L.NO_RX = @RX_NUMBER)'
+      '      AND (@OTCNUMBER IS NULL OR L.OTCNUMBER = @OTCNUMBER)'
+      '      AND (@MESSAGE_ID IS NULL OR O.MessageID = @MESSAGE_ID)'
+      ''
+      '    UNION ALL'
+      ''
+      '    SELECT'
+      '      C.[DATE] AS EVENT_TIME,'
+      '      '#39'CONTROLED_LOG'#39' AS SOURCE_TABLE,'
+      '      CASE'
+      
+        '        WHEN ISNULL(C.QTY_SOLD, 0) > 0 THEN '#39'Controlled Dispense' +
+        'd'#39
+      
+        '        WHEN ISNULL(C.QTY_PURCHASED, 0) > 0 THEN '#39'Controlled Pur' +
+        'chased'#39
+      '        ELSE '#39'Controlled Log'#39
+      '      END AS EVENT_TYPE,'
+      ''
+      '      C.RX_NUMBER,'
+      '      C.OTCNUMBER,'
+      '      O.MessageID AS MESSAGE_ID,'
+      ''
+      '      NULL AS DRUG_ID,'
+      '      C.NDC,'
+      '      C.DRUG AS DRUG_NAME,'
+      '      C.SCHEDULE_TYPE,'
+      ''
+      '      C.PATIENT_NUMBER AS PATIENT_ID,'
+      '      C.PATIENT_SUPPLIER AS PATIENT_NAME,'
+      ''
+      '      C.PRESCRIBER_NUMBER AS PRESCRIBER_ID,'
+      '      C.PRESCRIBER AS PRESCRIBER_NAME,'
+      '      D.DEA_Federal AS DEA,'
+      ''
+      '      C.EMPLOYEE AS USER_INITIALS,'
+      '      C.PHARMACIST,'
+      '      CAST(1 AS bit) AS SUCCESSFUL,'
+      '      C.DRUG AS DESCRIPTION,'
+      '      CONCAT('
+      '        '#39'Schedule: '#39', C.SCHEDULE_TYPE,'
+      '        '#39'; Qty Sold: '#39', C.QTY_SOLD,'
+      '        '#39'; Qty Purchased: '#39', C.QTY_PURCHASED,'
+      '        '#39'; Balance: '#39', C.BALANCE'
+      '      ) AS NOTE'
+      '    FROM CONTROLED_LOG C'
+      '    LEFT JOIN OTC O'
+      '      ON O.OTCNUMBER = C.OTCNUMBER'
+      '    LEFT JOIN Doctor D'
+      '      ON D.NumeroDoctor = C.PRESCRIBER_NUMBER'
+      '    WHERE (@RX_NUMBER IS NULL OR C.RX_NUMBER = @RX_NUMBER)'
+      '      AND (@OTCNUMBER IS NULL OR C.OTCNUMBER = @OTCNUMBER)'
+      '      AND (@MESSAGE_ID IS NULL OR O.MessageID = @MESSAGE_ID)'
+      ''
+      '    UNION ALL'
+      ''
+      '    SELECT'
+      '      S.DateReceived AS EVENT_TIME,'
+      '      '#39'SURESCRIPTS'#39' AS SOURCE_TABLE,'
+      '      '#39'ePrescribe Received'#39' AS EVENT_TYPE,'
+      ''
+      '      S.RxReferenceNumber AS RX_NUMBER,'
+      '      O.OTCNUMBER,'
+      '      S.MessageID AS MESSAGE_ID,'
+      ''
+      '      S.MedicationID AS DRUG_ID,'
+      '      O.NDC,'
+      '      S.Medication AS DRUG_NAME,'
+      '      CL.SCHEDULE_TYPE,'
+      ''
+      '      S.PatientID AS PATIENT_ID,'
+      '      S.Patient AS PATIENT_NAME,'
+      ''
+      '      S.PrescriberID AS PRESCRIBER_ID,'
+      '      S.Prescriber AS PRESCRIBER_NAME,'
+      '      D.DEA_Federal AS DEA,'
+      ''
+      '      S.Atendida_por AS USER_INITIALS,'
+      '      NULL AS PHARMACIST,'
+      '      CAST(1 AS bit) AS SUCCESSFUL,'
+      '      S.Medication AS DESCRIPTION,'
+      '      CONCAT('
+      '        '#39'Transaction Type: '#39', S.TransactionType,'
+      '        '#39'; Patient: '#39', S.Patient,'
+      '        '#39'; Prescriber: '#39', S.Prescriber,'
+      '        '#39'; Rx Status: '#39', S.Rx_Status'
+      '      ) AS NOTE'
+      '    FROM Surescripts S'
+      '    LEFT JOIN OTC O'
+      '      ON O.NumeroReceta = S.RxReferenceNumber'
+      '    OUTER APPLY'
+      '    ('
+      '      SELECT TOP 1 C.*'
+      '      FROM CONTROLED_LOG C'
+      '      WHERE C.RX_NUMBER = S.RxReferenceNumber'
+      '      ORDER BY C.[DATE] DESC'
+      '    ) CL'
+      '    LEFT JOIN Doctor D'
+      
+        '      ON D.NumeroDoctor = COALESCE(S.PrescriberID, CL.PRESCRIBER' +
+        '_NUMBER)'
+      
+        '    WHERE (@RX_NUMBER IS NULL OR S.RxReferenceNumber = @RX_NUMBE' +
+        'R)'
+      '      AND (@OTCNUMBER IS NULL OR O.OTCNUMBER = @OTCNUMBER)'
+      '      AND (@MESSAGE_ID IS NULL OR S.MessageID = @MESSAGE_ID)'
+      ''
+      '    UNION ALL'
+      ''
+      '    SELECT'
+      '      LS.[TIME] AS EVENT_TIME,'
+      '      '#39'LOG_SURESCRIPTS'#39' AS SOURCE_TABLE,'
+      '      CASE LS.CODE'
+      '        WHEN '#39'D'#39' THEN '#39'ePrescribe Deleted'#39
+      '        WHEN '#39'U'#39' THEN '#39'ePrescribe Updated'#39
+      '        WHEN '#39'M'#39' THEN '#39'ePrescribe Updated'#39
+      '        WHEN '#39'A'#39' THEN '#39'ePrescribe Appended'#39
+      '        WHEN '#39'B'#39' THEN '#39'ePrescribe Backup'#39
+      '        WHEN '#39'P'#39' THEN '#39'ePrescribe Printed'#39
+      '        ELSE LS.CODE'
+      '      END AS EVENT_TYPE,'
+      ''
+      '      S.RxReferenceNumber AS RX_NUMBER,'
+      '      O.OTCNUMBER,'
+      '      LS.MESSAGE_ID,'
+      ''
+      '      S.MedicationID AS DRUG_ID,'
+      '      O.NDC,'
+      '      S.Medication AS DRUG_NAME,'
+      '      CL.SCHEDULE_TYPE,'
+      ''
+      '      S.PatientID AS PATIENT_ID,'
+      '      S.Patient AS PATIENT_NAME,'
+      ''
+      '      S.PrescriberID AS PRESCRIBER_ID,'
+      '      S.Prescriber AS PRESCRIBER_NAME,'
+      '      D.DEA_Federal AS DEA,'
+      ''
+      '      LS.TYPIST AS USER_INITIALS,'
+      '      NULL AS PHARMACIST,'
+      '      CAST(1 AS bit) AS SUCCESSFUL,'
+      '      LS.NOTE AS DESCRIPTION,'
+      '      LS.NOTE'
+      '    FROM LOG_SURESCRIPTS LS'
+      '    LEFT JOIN Surescripts S'
+      '      ON S.MessageID = LS.MESSAGE_ID'
+      '    LEFT JOIN OTC O'
+      '      ON O.NumeroReceta = S.RxReferenceNumber'
+      '    OUTER APPLY'
+      '    ('
+      '      SELECT TOP 1 C.*'
+      '      FROM CONTROLED_LOG C'
+      '      WHERE C.RX_NUMBER = S.RxReferenceNumber'
+      '      ORDER BY C.[DATE] DESC'
+      '    ) CL'
+      '    LEFT JOIN Doctor D'
+      
+        '      ON D.NumeroDoctor = COALESCE(S.PrescriberID, CL.PRESCRIBER' +
+        '_NUMBER)'
+      
+        '    WHERE (@RX_NUMBER IS NULL OR S.RxReferenceNumber = @RX_NUMBE' +
+        'R)'
+      '      AND (@OTCNUMBER IS NULL OR O.OTCNUMBER = @OTCNUMBER)'
+      '      AND (@MESSAGE_ID IS NULL OR LS.MESSAGE_ID = @MESSAGE_ID)'
+      '  ) AuditTrail'
+      '  ORDER BY EVENT_TIME DESC;'
+      'END')
+    Left = 7912
+    Top = 488
   end
 end
