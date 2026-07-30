@@ -1087,6 +1087,7 @@ type
     UPDATE_INVENTORIYINFO: TFDQuery;
     UpdatePlanesMedicosSwitch: TFDQuery;
     GET_CONTROLLED_RX_AUDIT_TRAIL: TFDQuery;
+    Insurance_Master_data: TFDQuery;
     procedure UpdateFarmatec;
     procedure DataModuleCreate(Sender: TObject);
     procedure cdsPriceTableAfterPost(DataSet: TDataSet);
@@ -1721,7 +1722,9 @@ begin
     ExecQryCreate(Insurance_Master.SQL.Text);
     ExecQryCreate(Processor_Master.SQL.Text);
     ExecQry(PLANESMEDICOSupdatefromInsurance_Master.SQL.Text);
+    Insurance_Master_data.ExecSQL;
   end;
+
   //=======================================================
   ExecQryCreate(SIG_APPLY_METHOD.SQL.Text);
   FrmMain.PageControlInfo.ActivePageIndex := 0;
@@ -2021,6 +2024,7 @@ begin
 
 
   //=======================REFILL QUERY=========================================
+    CreateFields('RX_QUEUE', 'OTCNUMBER', 'INT null');
     CreateFields('RX_QUEUE', 'REFILL_QUERY_ID', 'INT null');
     CreateFields('REFILL_QUERY', 'SCAN_RX_LINK', 'INT NULL');
     CreateFields('REFILL_QUERY', 'PATIENT_ID', 'INT NULL');

@@ -24,6 +24,8 @@ implementation
 
 {%CLASSGROUP 'Vcl.Controls.TControl'}
 
+uses UntDMModifyDatabase;
+
 {$R *.dfm}
 
 end.
